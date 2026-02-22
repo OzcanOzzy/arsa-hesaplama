@@ -209,8 +209,8 @@
                     
                     if (adet > 0) {
                         hasTahmini = true;
-                        tahminiSenaryoText += `• Sadece ${oda} yapılırsa: ${adet} Adet ${kalanNotu}\n`;
-                        tahminiSenaryoHtml += `<li style="padding: 8px 0; border-bottom: 1px dashed #cbd5e1;"><strong>Sadece ${oda} yapılırsa:</strong> ${adet} Adet <span style="color: #64748b; font-size: 13px; margin-left: 5px;">${kalanNotu}</span></li>`;
+                        tahminiSenaryoText += `• Sadece ${oda} (Net: ${s.net}m² / Brüt: ${s.brut}m²) yapılırsa: ${adet} Adet ${kalanNotu}\n`;
+                        tahminiSenaryoHtml += `<li style="padding: 8px 0; border-bottom: 1px dashed #cbd5e1;"><strong>Sadece ${oda} <span style="font-weight:normal; color:#64748b; font-size:13px;">(Net: ${s.net}m² / Brüt: ${s.brut}m²)</span> yapılırsa:</strong> ${adet} Adet <span style="color: #64748b; font-size: 13px; margin-left: 5px;">${kalanNotu}</span></li>`;
                     }
                 });
 
@@ -228,7 +228,11 @@
             const handlePrint = () => {
                 const { manuelDetay, seciliVarMi, verimlilik, tahminiSenaryoHtml } = getReportDetails();
                 
-                const netInsaatStr = seciliVarMi ? `${ozet.toplamNetM2.toLocaleString()} m²` : '<span style="color:#94a3b8; font-weight:normal;">Belirlenmedi (Manuel seçim yapılmadı)</span>';
+                const maxNetAlan = Math.round(ozet.emsalAlani || 0);
+                const netInsaatStr = seciliVarMi 
+                    ? `${ozet.toplamNetM2.toLocaleString()} m²` 
+                    : `${maxNetAlan.toLocaleString()} m² <span style="color:#94a3b8; font-size:12px; font-weight:normal;">(En fazla yapılabilecek net alan)</span>`;
+                
                 const planlananUniteStr = seciliVarMi ? `${ozet.toplamDaire} Adet` : '<span style="color:#94a3b8; font-weight:normal;">Belirlenmedi (Manuel seçim yapılmadı)</span>';
                 const verimStr = seciliVarMi ? `%${verimlilik}` : '<span style="color:#94a3b8; font-weight:normal;">Belirlenmedi</span>';
                 
@@ -251,7 +255,7 @@
                         </div>
 
                         <h3 style="color: #1d63cb; margin-top: 30px; font-size: 18px;">💡 TAHMİNİ SENARYOLAR</h3>
-                        <p style="font-size: 12px; color: #ef4444; margin-top: -10px; margin-bottom: 10px;">(Not: Aşağıdaki seçenekler alternatiflerdir, birbirleriyle toplanmazlar.)</p>
+                        <p style="font-size: 12px; color: #ef4444; margin-top: -10px; margin-bottom: 10px;"></p>
                         <ul style="list-style-type: none; padding-left: 0;">
                             ${tahminiSenaryoHtml}
                         </ul>
@@ -302,7 +306,11 @@
             const handleShare = async () => {
                 const { manuelDetay, seciliVarMi, verimlilik, tahminiSenaryoText } = getReportDetails();
 
-                const netInsaatStr = seciliVarMi ? `${ozet.toplamNetM2.toLocaleString()} m²` : 'Belirlenmedi (Manuel Seçim Yok)';
+                const maxNetAlan = Math.round(ozet.emsalAlani || 0);
+                const netInsaatStr = seciliVarMi 
+                    ? `${ozet.toplamNetM2.toLocaleString()} m²` 
+                    : `${maxNetAlan.toLocaleString()} m² (En fazla yapılabilecek net alan)`;
+                
                 const planlananUniteStr = seciliVarMi ? `${ozet.toplamDaire} Adet` : 'Belirlenmedi (Manuel Seçim Yok)';
                 const verimStr = seciliVarMi ? `%${verimlilik}` : 'Belirlenmedi';
 
