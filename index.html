@@ -14,6 +14,18 @@
     
     <!-- Babel CDN (Tarayıcıda JSX okuyabilmek için) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* Yazdırırken (Rapor Alırken) arkaplan renklerinin korunması için */
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            /* Gerekirse yazdırılırken marginleri sıfırlama */
+            @page { margin: 1cm; }
+        }
+    </style>
 </head>
 <body class="bg-[#F8FAFC]">
     
@@ -44,6 +56,7 @@
         const Trash2 = ({className}) => <Icon className={className}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></Icon>;
         const PieChart = ({className}) => <Icon className={className}><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></Icon>;
         const MapIcon = ({className}) => <Icon className={className}><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></Icon>;
+        const CheckCircle = ({className}) => <Icon className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></Icon>;
 
         // --- UYGULAMA MANTIK KODLARI ---
         const calcBrut = (net) => Math.round(net * 1.30);
@@ -121,6 +134,8 @@
             });
 
             const [sepet, setSepet] = useState({});
+            const [toastMessage, setToastMessage] = useState("");
+            
             const [ozet, setOzet] = useState({
                 emsalAlani: 0,
                 toplamBrutKapasite: 0,
@@ -162,6 +177,39 @@
                     
                     return { ...prev, [key]: { ...mevcut, adet: yeniAdet } };
                 });
+            };
+
+            // Rapor Alma (Yazdır)
+            const handlePrint = () => {
+                window.print();
+            };
+
+            // Paylaş (Pano Kopyalama)
+            const handleShare = () => {
+                const textSummary = `🏢 Emlaknomi Arsa Raporu\n` +
+                                  `----------------------\n` +
+                                  `📍 Arsa Alanı: ${params.arsaAlani} m² (${params.nizamTipi} Nizam)\n` +
+                                  `🏗️ Emsal: ${params.emsal} | TAKS: ${params.taks} | Kat: ${params.katSayisi}\n` +
+                                  `📏 Toplam Brüt İnşaat: ${ozet.toplamBrutKapasite.toLocaleString(undefined, {maximumFractionDigits:0})} m²\n` +
+                                  `✅ Toplam Net İnşaat: ${ozet.toplamNetM2.toLocaleString()} m²\n` +
+                                  `🏠 Planlanan Ünite: ${ozet.toplamDaire} Adet\n` +
+                                  `----------------------\n` +
+                                  `Verimlilik Oranı: %${((ozet.toplamNetM2 / ozet.kullanilanM2) * 100).toFixed(1)}\n\n` +
+                                  `Emlaknomi ile hesaplanmıştır.`;
+
+                // document.execCommand fallback (iFrame ve tüm tarayıcılar için daha güvenli)
+                const textArea = document.createElement("textarea");
+                textArea.value = textSummary;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    setToastMessage("Proje özeti panoya kopyalandı!");
+                    setTimeout(() => setToastMessage(""), 3500);
+                } catch (err) {
+                    console.error('Kopyalama başarısız', err);
+                }
+                document.body.removeChild(textArea);
             };
 
             useEffect(() => {
@@ -216,6 +264,15 @@
 
             return (
                 <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900 p-4 md:p-8">
+                    
+                    {/* Toast Mesajı */}
+                    {toastMessage && (
+                        <div className="fixed bottom-6 right-6 bg-[#1D63CB] text-white px-6 py-4 rounded-2xl shadow-2xl z-50 animate-bounce flex items-center gap-3 print:hidden">
+                            <CheckCircle className="w-5 h-5 text-green-300" />
+                            <span className="font-bold text-sm">{toastMessage}</span>
+                        </div>
+                    )}
+
                     <div className="max-w-6xl mx-auto space-y-8">
                         
                         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -229,11 +286,11 @@
                                 </div>
                             </div>
                             
-                            <div className="flex gap-2">
-                                <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
+                            <div className="flex gap-2 print:hidden">
+                                <button onClick={handleShare} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all shadow-sm active:scale-95">
                                     <Share2 className="w-4 h-4" /> Paylaş
                                 </button>
-                                <button className="flex items-center gap-2 px-4 py-2 bg-[#1D63CB] text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-all shadow-md">
+                                <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-[#1D63CB] text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-all shadow-md active:scale-95">
                                     <FileText className="w-4 h-4" /> Rapor Al
                                 </button>
                             </div>
@@ -414,7 +471,7 @@
                                                                     <div className="text-[10px] font-medium text-slate-300">Brüt: {s.brut}m²</div>
                                                                 </div>
                                                                 
-                                                                <div className="flex items-center justify-between mt-5 pt-4 border-t border-slate-50">
+                                                                <div className="flex items-center justify-between mt-5 pt-4 border-t border-slate-50 print:hidden">
                                                                     <button 
                                                                         onClick={() => updateAdet(oda, boyut, -1)} 
                                                                         className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-95 disabled:opacity-30"
@@ -441,7 +498,7 @@
                                     </div>
 
                                     <div className="mt-12 flex justify-between items-center pt-8 border-t border-slate-100">
-                                        <button onClick={() => setSepet({})} className="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-red-500 transition-colors tracking-widest uppercase py-2 px-4 hover:bg-red-50 rounded-xl">
+                                        <button onClick={() => setSepet({})} className="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-red-500 transition-colors tracking-widest uppercase py-2 px-4 hover:bg-red-50 rounded-xl print:hidden">
                                             <Trash2 className="w-4 h-4" /> Seçimleri Temizle
                                         </button>
                                         <div className="text-right">
