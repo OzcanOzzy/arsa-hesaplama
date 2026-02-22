@@ -1,0 +1,283 @@
+import React, { useState, useEffect } from 'react';
+import { Calculator, Home, Info, Ruler, Layers, Plus, Minus, CheckCircle2, AlertCircle, LayoutGrid, UserCircle2 } from 'lucide-react';
+
+const DAİRE_STANDARTLARI = {
+  '1+1': {
+    Kucuk: { net: 40, brut: 52 },
+    Orta: { net: 50, brut: 65 },
+    Buyuk: { net: 65, brut: 85 }
+  },
+  '2+1': {
+    Kucuk: { net: 70, brut: 90 },
+    Orta: { net: 80, brut: 105 },
+    Buyuk: { net: 100, brut: 130 }
+  },
+  '3+1': {
+    Kucuk: { net: 95, brut: 125 },
+    Orta: { net: 110, brut: 145 },
+    Buyuk: { net: 135, brut: 175 }
+  },
+  '4+1': {
+    Kucuk: { net: 130, brut: 170 },
+    Orta: { net: 140, brut: 185 },
+    Buyuk: { net: 170, brut: 220 }
+  }
+};
+
+export default function App() {
+  const [params, setParams] = useState({
+    arsaAlani: 1000,
+    yolaTerk: 10,
+    emsal: 1.5,
+    taks: 0.30,
+    katSayisi: 5
+  });
+
+  const [sepet, setSepet] = useState({});
+  const [ozet, setOzet] = useState({
+    toplamKapasiteM2: 0,
+    kullanilanM2: 0,
+    dolulukOrani: 0,
+    netArsa: 0,
+    toplamDaire: 0,
+    toplamNetM2: 0
+  });
+
+  const handleParamChange = (e) => {
+    const { name, value } = e.target;
+    setParams(prev => ({ ...prev, [name]: parseFloat(value) || 0 }));
+  };
+
+  const updateAdet = (odaTipi, boyut, delta) => {
+    const key = `${odaTipi}-${boyut}`;
+    setSepet(prev => {
+      const mevcut = prev[key] || { adet: 0, odaTipi, boyut, ...DAİRE_STANDARTLARI[odaTipi][boyut] };
+      const yeniAdet = Math.max(0, mevcut.adet + delta);
+      return { ...prev, [key]: { ...mevcut, adet: yeniAdet } };
+    });
+  };
+
+  useEffect(() => {
+    const netArsa = params.arsaAlani * (1 - params.yolaTerk / 100);
+    const maksTaban = netArsa * params.taks;
+    let toplamEmsal = netArsa * params.emsal;
+    
+    if ((toplamEmsal / params.katSayisi) > maksTaban) {
+      toplamEmsal = maksTaban * params.katSayisi;
+    }
+
+    const toplamBrutKapasite = toplamEmsal * 1.25; 
+    
+    let suanKullanilanBrut = 0;
+    let suanToplamDaire = 0;
+    let suanNetM2 = 0;
+
+    Object.values(sepet).forEach(d => {
+      suanKullanilanBrut += (d.adet * d.brut);
+      suanNetM2 += (d.adet * d.net);
+      suanToplamDaire += d.adet;
+    });
+
+    setOzet({
+      toplamKapasiteM2: toplamBrutKapasite,
+      kullanilanM2: suanKullanilanBrut,
+      dolulukOrani: Math.min(100, (suanKullanilanBrut / toplamBrutKapasite) * 100),
+      netArsa: netArsa,
+      toplamDaire: suanToplamDaire,
+      toplamNetM2: suanNetM2
+    });
+  }, [params, sepet]);
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 p-4 md:p-8">
+      <div className="max-w-6xl mx-auto space-y-8">
+        
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="bg-indigo-600 p-3 rounded-2xl shadow-xl">
+              <Calculator className="text-white w-7 h-7" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-black text-slate-800 tracking-tight">Emlaknomi Arsa Hesaplama</h1>
+              <p className="text-slate-500 text-sm font-medium">Akıllı Kapasite ve Proje Simülatörü</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          {/* Sol Kolon: Girdiler */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
+              <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                <Ruler className="w-4 h-4" /> 1. Arsa ve İmar Bilgileri
+              </h2>
+              <div className="space-y-4">
+                {[
+                  { label: 'Arsa Alanı (m²)', name: 'arsaAlani' },
+                  { label: 'Yola Terk (%)', name: 'yolaTerk' },
+                  { label: 'Emsal (KAKS)', name: 'emsal', step: 0.1 },
+                  { label: 'TAKS (Oturum)', name: 'taks', step: 0.01 },
+                  { label: 'Kat Sayısı', name: 'katSayisi' }
+                ].map((f) => (
+                  <div key={f.name}>
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">{f.label}</label>
+                    <input type="number" name={f.name} step={f.step || 1} value={params[f.name]} onChange={handleParamChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold mt-1 shadow-inner" />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-slate-900 rounded-3xl p-6 text-white shadow-2xl relative overflow-hidden">
+              <div className="relative z-10">
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Toplam İnşaat Kapasitesi</span>
+                <div className="text-4xl font-black text-indigo-400 mt-1">{ozet.toplamKapasiteM2.toLocaleString(undefined, {maximumFractionDigits:0})} <span className="text-lg text-white/40">m²</span></div>
+                <div className="mt-4 pt-4 border-t border-white/10 flex justify-between">
+                  <span className="text-xs text-slate-400 font-medium">Net Arsa:</span>
+                  <span className="text-xs font-bold">{ozet.netArsa.toLocaleString()} m²</span>
+                </div>
+              </div>
+              <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl"></div>
+            </div>
+          </div>
+
+          {/* Sağ Kolon: Analiz ve Seçim */}
+          <div className="lg:col-span-8 space-y-8">
+            
+            {/* OTOMATİK SİMÜLASYON TABLOSU */}
+            <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
+              <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                <LayoutGrid className="w-4 h-4 text-indigo-500" /> Otomatik Kapasite Senaryoları (Orta Boy)
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {Object.keys(DAİRE_STANDARTLARI).map((oda) => {
+                  const s = DAİRE_STANDARTLARI[oda].Orta;
+                  const adet = Math.floor(ozet.toplamKapasiteM2 / s.brut);
+                  return (
+                    <div key={oda} className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 flex flex-col items-center text-center">
+                      <div className="text-xs font-black text-indigo-600 mb-1">{oda} Senaryosu</div>
+                      <div className="text-3xl font-black text-slate-800">{adet}</div>
+                      <div className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tighter">
+                        Net: {s.net}m² / Brüt: {s.brut}m²
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-slate-400 mt-4 text-center italic font-medium">* Yukarıdaki tablo arsanın sadece tek tip daire ile dolması durumundaki maksimum kapasiteleri göstermektedir.</p>
+            </div>
+
+            {/* MANUEL SEÇİM BÖLÜMÜ */}
+            <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
+              <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <UserCircle2 className="w-4 h-4 text-indigo-500" /> Kendi Projeni Tasarla
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium mt-1">Lütfen aşağıdan istediğiniz daire tiplerini ve boyutlarını ekleyiniz.</p>
+                </div>
+                <div className="bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100 text-right">
+                  <div className="text-[10px] font-black text-slate-400 uppercase">Doluluk Oranı</div>
+                  <div className={`text-lg font-black ${ozet.dolulukOrani >= 100 ? 'text-red-500' : 'text-indigo-600'}`}>%{ozet.dolulukOrani.toFixed(1)}</div>
+                </div>
+              </div>
+
+              {/* Doluluk Barı */}
+              <div className="w-full h-4 bg-slate-100 rounded-full overflow-hidden mb-8 shadow-inner">
+                <div className={`h-full transition-all duration-700 ease-out ${ozet.dolulukOrani >= 100 ? 'bg-red-500' : 'bg-indigo-600'}`} style={{ width: `${ozet.dolulukOrani}%` }}></div>
+              </div>
+
+              <div className="space-y-6">
+                {Object.keys(DAİRE_STANDARTLARI).map((oda) => (
+                  <div key={oda} className="p-5 bg-slate-50 rounded-3xl border border-slate-100">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 bg-white shadow-sm border border-slate-200 rounded-xl flex items-center justify-center font-black text-indigo-600">{oda}</div>
+                      <span className="font-bold text-slate-700">Tipi Daire Seçenekleri</span>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {['Kucuk', 'Orta', 'Buyuk'].map((boyut) => {
+                        const key = `${oda}-${boyut}`;
+                        const adet = sepet[key]?.adet || 0;
+                        const s = DAİRE_STANDARTLARI[oda][boyut];
+                        const label = boyut === 'Kucuk' ? 'KÜÇÜK' : boyut === 'Orta' ? 'ORTA' : 'BÜYÜK';
+                        const badgeColor = boyut === 'Kucuk' ? 'bg-emerald-100 text-emerald-700' : boyut === 'Orta' ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-700';
+
+                        return (
+                          <div key={key} className={`bg-white p-4 rounded-2xl border transition-all ${adet > 0 ? 'border-indigo-500 shadow-md scale-[1.02]' : 'border-slate-200'}`}>
+                            <div className="flex justify-between items-center mb-1">
+                              <span className={`text-[10px] font-black px-2 py-0.5 rounded ${badgeColor}`}>{label}</span>
+                              <span className="text-xs font-bold text-slate-800">{adet} Adet</span>
+                            </div>
+                            <div className="text-[10px] font-bold text-slate-400 uppercase flex justify-between mt-2">
+                              <span>Net: {s.net}m²</span>
+                              <span>Brüt: {s.brut}m²</span>
+                            </div>
+                            
+                            <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-50">
+                              <button onClick={() => updateAdet(oda, boyut, -1)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Minus className="w-5 h-5" /></button>
+                              <span className={`text-xl font-black ${adet > 0 ? 'text-indigo-600' : 'text-slate-200'}`}>{adet}</span>
+                              <button onClick={() => updateAdet(oda, boyut, 1)} disabled={ozet.dolulukOrani >= 100} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all disabled:opacity-20"><Plus className="w-5 h-5" /></button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-8 flex justify-between items-center pt-8 border-t border-slate-100">
+                <button onClick={() => setSepet({})} className="text-xs font-bold text-slate-400 hover:text-red-500 tracking-widest uppercase">Tümünü Sıfırla</button>
+                <div className="text-right">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase">Toplam Daire Sayısı</div>
+                  <div className="text-3xl font-black text-slate-800">{ozet.toplamDaire} Adet</div>
+                </div>
+              </div>
+            </div>
+
+            {/* FINAL ÖZET KARTI */}
+            {ozet.toplamDaire > 0 && (
+              <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-3xl p-8 text-white shadow-xl shadow-indigo-100">
+                <h3 className="text-indigo-200 font-bold text-xs uppercase tracking-widest mb-6">Proje Final Özeti</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+                  <div className="space-y-4">
+                    <div>
+                      <div className="text-[10px] text-indigo-300 font-bold uppercase">Toplam Net Satılabilir</div>
+                      <div className="text-3xl font-black">{ozet.toplamNetM2.toLocaleString()} m²</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-indigo-300 font-bold uppercase">Toplam Brüt Kullanılan</div>
+                      <div className="text-3xl font-black">{ozet.kullanilanM2.toLocaleString()} m²</div>
+                    </div>
+                  </div>
+                  
+                  <div className="hidden md:block h-24 w-px bg-white/10 mx-auto"></div>
+
+                  <div className="bg-white/10 p-6 rounded-3xl border border-white/10 backdrop-blur-md">
+                    <ul className="space-y-2">
+                      {Object.values(sepet).map(d => d.adet > 0 && (
+                        <li key={`${d.odaTipi}-${d.boyut}`} className="flex justify-between text-sm">
+                          <span className="text-indigo-200 font-medium">{d.odaTipi} ({d.boyut})</span>
+                          <span className="font-black">{d.adet} Adet</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
+          </div>
+
+        </div>
+
+        <footer className="text-center py-10">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Emlaknomi Gayrimenkul Teknolojileri • 2024</p>
+        </footer>
+
+      </div>
+    </div>
+  );
+}
