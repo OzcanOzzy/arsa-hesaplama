@@ -99,7 +99,6 @@
 
             items.sort((a, b) => b - a);
             
-            // Buçuklu katlar için dinamik kat dizisi oluştur (Örn: 2.5 kat -> [100, 100, 50])
             const tamKatlar = Math.floor(katSayisi);
             const bucukKisim = katSayisi - tamKatlar;
             let floors = [];
@@ -120,6 +119,75 @@
             return true;
         };
 
+        // Yeni Kombinasyon Üretici Fonksiyon (Büyük, Orta, Küçük ağırlıklı senaryolar - Net/Brüt bilgiler eklendi)
+        const getScenarios = (oda, katKapasitesi, katSayisi) => {
+            if (!katSayisi || katSayisi <= 0 || !katKapasitesi || katKapasitesi <= 0) return [];
+
+            const tamKatSayisi = Math.floor(katSayisi);
+            const bucukKisim = katSayisi - tamKatSayisi;
+            const tamKap = katKapasitesi;
+            const bucukKap = katKapasitesi * bucukKisim;
+
+            const B = DAİRE_STANDARTLARI[oda].Buyuk;
+            const O = DAİRE_STANDARTLARI[oda].Orta;
+            const K = DAİRE_STANDARTLARI[oda].Kucuk;
+
+            const runStrat = (cap, type) => {
+                let res = { B: 0, O: 0, K: 0, rem: cap };
+                if (type === 'B') {
+                    res.B = Math.floor(res.rem / B.brut); res.rem -= res.B * B.brut;
+                    res.O = Math.floor(res.rem / O.brut); res.rem -= res.O * O.brut;
+                    res.K = Math.floor(res.rem / K.brut); res.rem -= res.K * K.brut;
+                } else if (type === 'O') {
+                    res.O = Math.floor(res.rem / O.brut); res.rem -= res.O * O.brut;
+                    res.K = Math.floor(res.rem / K.brut); res.rem -= res.K * K.brut;
+                } else {
+                    res.K = Math.floor(res.rem / K.brut); res.rem -= res.K * K.brut;
+                }
+                return res;
+            };
+
+            const strats = ['B', 'O', 'K'];
+            const results = [];
+            const seenLabels = new Set();
+
+            strats.forEach(s => {
+                const tamRes = runStrat(tamKap, s);
+                const bucukRes = bucukKap > 0 ? runStrat(bucukKap, s) : {B:0, O:0, K:0, rem:0};
+
+                const totalB = (tamRes.B * tamKatSayisi) + bucukRes.B;
+                const totalO = (tamRes.O * tamKatSayisi) + bucukRes.O;
+                const totalK = (tamRes.K * tamKatSayisi) + bucukRes.K;
+                const totalAdet = totalB + totalO + totalK;
+
+                if (totalAdet === 0) return;
+
+                const remTamNet = Math.floor(tamRes.rem / 1.30);
+                const remBucukNet = Math.floor(bucukRes.rem / 1.30);
+
+                let parts = [];
+                if (totalB > 0) parts.push({ count: totalB, name: 'Büyük', net: B.net, brut: B.brut });
+                if (totalO > 0) parts.push({ count: totalO, name: 'Orta', net: O.net, brut: O.brut });
+                if (totalK > 0) parts.push({ count: totalK, name: 'Küçük', net: K.net, brut: K.brut });
+
+                const labelStr = parts.map(p => `${p.count} ${p.name}`).join(' + ');
+
+                if (!seenLabels.has(labelStr)) {
+                    seenLabels.add(labelStr);
+                    results.push({
+                        type: s === 'B' ? 'Büyük Ağırlıklı' : s === 'O' ? 'Orta Ağırlıklı' : 'Sadece Küçük',
+                        label: labelStr,
+                        parts: parts,
+                        remTamNet,
+                        remBucukNet,
+                        hasBucuk: bucukKap > 0
+                    });
+                }
+            });
+
+            return results;
+        };
+
         const EmlaknomiLogo = () => (
             <div className="relative w-16 h-16 bg-[#1D63CB] rounded-2xl flex items-center justify-center shadow-lg overflow-hidden shrink-0 border-b-4 border-blue-800">
                 <div className="relative w-12 h-12 bg-[#FF8C00] rounded-full flex items-center justify-center border-2 border-white shadow-inner">
@@ -132,7 +200,6 @@
         );
 
         function App() {
-            // Başlangıç değerleri
             const [params, setParams] = useState({
                 arsaAlani: '',
                 yolaTerkDeger: '',
@@ -206,36 +273,33 @@
                 let hasTahmini = false;
                 
                 Object.keys(DAİRE_STANDARTLARI).forEach((oda) => {
-                    const s = DAİRE_STANDARTLARI[oda].Orta;
+                    const scenarios = getScenarios(oda, ozet.katBrutKapasitesi, ozet.katSayisi);
                     
-                    const tamKatSayisi = Math.floor(ozet.katSayisi || 0);
-                    const bucukKisim = (ozet.katSayisi || 0) - tamKatSayisi;
-                    
-                    const adetPerTamKat = Math.floor((ozet.katBrutKapasitesi || 0) / s.brut);
-                    const adetBucukKat = bucukKisim > 0 ? Math.floor(((ozet.katBrutKapasitesi || 0) * bucukKisim) / s.brut) : 0;
-                    
-                    const adet = (adetPerTamKat * tamKatSayisi) + adetBucukKat;
-                    
-                    const kalanBrutPerTamKat = Math.max(0, (ozet.katBrutKapasitesi || 0) - (adetPerTamKat * s.brut));
-                    const kalanNetPerTamKat = Math.floor(kalanBrutPerTamKat / 1.30);
-                    
-                    let kalanNotu = "";
-                    if (bucukKisim > 0) {
-                        const kalanBrutBucuk = Math.max(0, ((ozet.katBrutKapasitesi || 0) * bucukKisim) - (adetBucukKat * s.brut));
-                        const kalanNetBucuk = Math.floor(kalanBrutBucuk / 1.30);
-                        if (kalanNetPerTamKat > 0 || kalanNetBucuk > 0) {
-                            kalanNotu = `(Artan Net: Normal Kat ${kalanNetPerTamKat}m², Çatı/Çekme ${kalanNetBucuk}m²)`;
-                        }
-                    } else {
-                        if (kalanNetPerTamKat > 0) {
-                            kalanNotu = `(Her katta ${kalanNetPerTamKat} m² net boşluk kalır)`;
-                        }
-                    }
-                    
-                    if (adet > 0) {
+                    if (scenarios.length > 0) {
                         hasTahmini = true;
-                        tahminiSenaryoText += `• Sadece ${oda} (Net: ${s.net}m² / Brüt: ${s.brut}m²) yapılırsa: ${adet} Adet ${kalanNotu}\n`;
-                        tahminiSenaryoHtml += `<li style="padding: 8px 0; border-bottom: 1px dashed #cbd5e1;"><strong>Sadece ${oda} <span style="font-weight:normal; color:#64748b; font-size:13px;">(Net: ${s.net}m² / Brüt: ${s.brut}m²)</span> yapılırsa:</strong> ${adet} Adet <span style="color: #64748b; font-size: 13px; margin-left: 5px;">${kalanNotu}</span></li>`;
+                        tahminiSenaryoText += `\n[${oda} İçin Alternatifler]\n`;
+                        tahminiSenaryoHtml += `
+                            <li style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">
+                                <strong style="color:#1d63cb; font-size:15px;">${oda} Tipi Alternatifleri:</strong>
+                                <ul style="list-style-type: none; padding-left: 10px; margin-top: 8px;">
+                        `;
+
+                        scenarios.forEach(r => {
+                            let kalanNotuText = "";
+                            let kalanNotuHtml = "";
+                            if (r.remTamNet > 0 || r.remBucukNet > 0) {
+                                kalanNotuText = ` (Artan Net: Kat ${r.remTamNet}m²${r.hasBucuk ? `, Çatı ${r.remBucukNet}m²` : ''})`;
+                                kalanNotuHtml = ` <div style="color:#64748b; font-size:12px; margin-top:4px;">(Artan Net: Kat ${r.remTamNet}m²${r.hasBucuk ? `, Çatı ${r.remBucukNet}m²` : ''})</div>`;
+                            }
+                            
+                            let partsText = r.parts.map(p => `${p.count} ${p.name} (N:${p.net}m² / B:${p.brut}m²)`).join(' + ');
+                            let partsHtml = r.parts.map(p => `${p.count} Adet ${p.name} <span style="color:#64748b; font-size:13px; font-weight:normal;">(Net:${p.net}m² / Brüt:${p.brut}m²)</span>`).join('<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ ');
+
+                            tahminiSenaryoText += `  • ${r.type}:\n    -> ${partsText}${kalanNotuText}\n`;
+                            tahminiSenaryoHtml += `<li style="margin-bottom: 12px;"><strong>${r.type}:</strong><br/> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&rarr; ${partsHtml}${kalanNotuHtml}</li>`;
+                        });
+                        
+                        tahminiSenaryoHtml += `</ul></li>`;
                     }
                 });
 
@@ -282,7 +346,7 @@
                         </div>
 
                         <h3 style="color: #1d63cb; margin-top: 30px; font-size: 18px;">💡 TAHMİNİ SENARYOLAR</h3>
-                        <p style="font-size: 12px; color: #ef4444; margin-top: -10px; margin-bottom: 10px;">(Not: Aşağıdaki seçenekler alternatiflerdir, birbirleriyle toplanmazlar.)</p>
+                        <p style="font-size: 12px; color: #ef4444; margin-top: -10px; margin-bottom: 10px;">(Not: Seçenekler alternatiflerdir, birbirleriyle toplanmazlar. Artan boşluklar maksimum değerlendirilmiştir.)</p>
                         <ul style="list-style-type: none; padding-left: 0;">
                             ${tahminiSenaryoHtml}
                         </ul>
@@ -590,56 +654,42 @@
                             </aside>
 
                             <main className="lg:col-span-8 space-y-8">
-                                <section className="bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl border border-slate-800 text-white relative overflow-hidden">
+                                <section className="bg-slate-900 rounded-[2.5rem] p-6 shadow-2xl border border-slate-800 text-white relative overflow-hidden">
                                     <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl"></div>
                                     <div className="relative z-10">
                                         <h2 className="text-xs font-bold text-[#FF8C00] uppercase tracking-widest mb-6 flex items-center gap-2">
-                                            <LayoutGrid className="w-4 h-4" /> Tahmini Senaryo (Detaylı sorgu için sayfayı aşağıya indiriniz.)
+                                            <LayoutGrid className="w-4 h-4" /> Tahmini Senaryolar (Kombinasyonlu Seçenekler)
                                         </h2>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                             {Object.keys(DAİRE_STANDARTLARI).map((oda) => {
-                                                const s = DAİRE_STANDARTLARI[oda].Orta;
-                                                
-                                                // Senaryoların hatasız çalışması için, eğer kat girilmediyse 1 olarak kabul et.
-                                                const varsayilanKat = ozet.katSayisi > 0 ? ozet.katSayisi : 1;
-                                                const tamKatSayisi = Math.floor(varsayilanKat);
-                                                const bucukKisim = varsayilanKat - tamKatSayisi;
-                                                
-                                                const adetPerTamKat = Math.floor((ozet.katBrutKapasitesi || 0) / s.brut);
-                                                const adetBucukKat = bucukKisim > 0 ? Math.floor(((ozet.katBrutKapasitesi || 0) * bucukKisim) / s.brut) : 0;
-                                                
-                                                const adet = (adetPerTamKat * tamKatSayisi) + adetBucukKat;
-                                                
-                                                const kalanBrutPerTamKat = Math.max(0, (ozet.katBrutKapasitesi || 0) - (adetPerTamKat * s.brut));
-                                                const kalanNetPerTamKat = Math.floor(kalanBrutPerTamKat / 1.30);
-                                                
-                                                let kalanNotu = "";
-                                                if (bucukKisim > 0) {
-                                                    const kalanBrutBucuk = Math.max(0, ((ozet.katBrutKapasitesi || 0) * bucukKisim) - (adetBucukKat * s.brut));
-                                                    const kalanNetBucuk = Math.floor(kalanBrutBucuk / 1.30);
-                                                    if (kalanNetPerTamKat > 0 || kalanNetBucuk > 0) {
-                                                        kalanNotu = `Artan Net: Kat ${kalanNetPerTamKat}m², Çatı ${kalanNetBucuk}m²`;
-                                                    }
-                                                } else {
-                                                    if (kalanNetPerTamKat > 0) {
-                                                        kalanNotu = `Her katta ${kalanNetPerTamKat} m² net boşluk kalır`;
-                                                    }
-                                                }
+                                                const scenarios = getScenarios(oda, ozet.katBrutKapasitesi, ozet.katSayisi);
 
                                                 return (
-                                                    <div key={oda} className="bg-white/5 p-5 rounded-3xl border border-white/10 flex flex-col items-center text-center hover:bg-white/10 transition-colors cursor-default group">
-                                                        <div className="text-[10px] font-black text-blue-400 mb-1 uppercase tracking-wider group-hover:text-blue-300 transition-colors">{oda} Tipi</div>
-                                                        <div className="flex items-baseline justify-center gap-1 text-4xl font-black text-white leading-tight whitespace-nowrap">
-                                                            {adet} <span className="text-[10px] text-white/50 font-bold uppercase tracking-widest">Adet</span>
-                                                        </div>
-                                                        <div className="text-[10px] font-bold text-white/60 mt-2 space-y-0.5 w-full">
-                                                            <div className="bg-white/10 px-2 py-0.5 rounded text-blue-200">Brüt: {s.brut}m²</div>
-                                                            <div className="text-white/30 mb-2">Net: {s.net}m²</div>
-                                                            
-                                                            {kalanNotu && ozet.katBrutKapasitesi > 0 && (
-                                                                <div className="mt-3 text-[9px] text-[#FF8C00] font-medium bg-[#FF8C00]/10 px-2 py-1.5 rounded-lg w-full text-center border border-[#FF8C00]/20 leading-snug">
-                                                                    {kalanNotu}
+                                                    <div key={oda} className="bg-white/5 p-4 rounded-3xl border border-white/10 flex flex-col hover:bg-white/10 transition-colors cursor-default group">
+                                                        <div className="text-xs font-black text-blue-400 mb-3 uppercase tracking-wider text-center group-hover:text-blue-300 transition-colors">{oda} Tipi Kombinasyonları</div>
+                                                        <div className="space-y-2">
+                                                            {scenarios.map((r, i) => (
+                                                                <div key={i} className="bg-slate-800/50 p-3 rounded-2xl border border-white/5 mb-2">
+                                                                    <div className="text-[9px] text-[#FF8C00] uppercase font-bold mb-1">{r.type}</div>
+                                                                    <div className="space-y-1 my-1.5">
+                                                                        {r.parts.map((p, idx) => (
+                                                                            <div key={idx} className="text-sm font-black text-white flex items-center flex-wrap gap-1">
+                                                                                <span>{p.count} Adet {p.name}</span>
+                                                                                <span className="text-[10px] font-medium text-white/50 tracking-wide ml-1">
+                                                                                    (Net: {p.net}m² | Brüt: {p.brut}m²)
+                                                                                </span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                    {(r.remTamNet > 0 || r.remBucukNet > 0) && (
+                                                                        <div className="inline-block px-2 py-1 mt-1 bg-blue-900/30 rounded-lg text-[9px] text-blue-200/80 font-medium border border-blue-800/50">
+                                                                            Artan Net: Kat {r.remTamNet}m² {r.hasBucuk ? `| Çatı ${r.remBucukNet}m²` : ''}
+                                                                        </div>
+                                                                    )}
                                                                 </div>
+                                                            ))}
+                                                            {scenarios.length === 0 && (
+                                                                <div className="text-xs text-red-400 text-center py-4 font-bold">Bu imara sığmıyor</div>
                                                             )}
                                                         </div>
                                                     </div>
