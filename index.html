@@ -132,7 +132,7 @@
         );
 
         function App() {
-            // Başlangıç değerleri tamamen boş olacak şekilde düzenlendi
+            // Başlangıç değerleri
             const [params, setParams] = useState({
                 arsaAlani: '',
                 yolaTerkDeger: '',
@@ -140,7 +140,7 @@
                 emsal: '',
                 taks: '',
                 katSayisi: '',
-                katBirim: 'kat', // Yeni alan: kat veya metre
+                katBirim: 'kat',
                 nizamTipi: 'Ayrık'
             });
 
@@ -405,21 +405,14 @@
                     else taksVal = taksVal / 10; // Örn: 3 -> 0.30
                 }
 
-                if (emsalVal > rawKat && rawKat > 0) {
-                    if (emsalVal >= 100) {
-                        emsalVal = emsalVal / 100; // Örn: 150 -> 1.50
-                    } else if (emsalVal >= 10) {
-                        if ((emsalVal / 10) > rawKat || emsalVal === 30) {
-                            emsalVal = emsalVal / 100; // Örn: 30 -> 0.30
-                        } else {
-                            emsalVal = emsalVal / 10; // Örn: 15 -> 1.5
-                        }
-                    }
+                if (emsalVal > 10) {
+                    if (emsalVal >= 100) emsalVal = emsalVal / 100; // Örn: 150 -> 1.50
+                    else emsalVal = emsalVal / 10; // Örn: 15 -> 1.5
                 }
                 // ----------------------------------------
                 
                 // Yükseklik (Metre) -> Kat Dönüşümü (3 Metre = 1 Kat varsayımı, 0.5 payı ile)
-                let finalKatVal = 1;
+                let finalKatVal = 1; // Default
                 if (rawKat > 0) {
                     finalKatVal = isMetre ? Math.round((rawKat / 3) * 2) / 2 : rawKat;
                     finalKatVal = Math.max(0.5, finalKatVal); // Çatı payı dahil minimum 0.5 kat
@@ -432,17 +425,14 @@
                     netArsa = Math.max(0, arsaVal - terkVal);
                 }
 
-                const maksTaban = netArsa * taksVal;
+                // EMSAL ALANI DOĞRUDAN HESAPLANIYOR (Daha önceki TAKS kısıtlaması kapalı çıkmalar sebebiyle kaldırıldı)
                 let emsalAlani = netArsa * emsalVal;
-                
-                // H Kısıtlaması (Kat sınırlamasına göre maksimum alanı denetleme)
-                if (finalKatVal > 0 && (emsalAlani / finalKatVal) > maksTaban) {
-                    emsalAlani = maksTaban * finalKatVal;
-                }
 
                 const toplamBrutKapasite = emsalAlani * 1.30; 
-                // Kat başı brüt, emsalin buçuklu kat dahil total dağılımını ifade eder.
-                const katBrutKapasitesi = finalKatVal > 0 ? toplamBrutKapasite / finalKatVal : 0;
+                
+                // Kat başı brüt kapasite (kat değeri 0 bile olsa senaryoların çalışması için min 1 kabul edilir)
+                const effectiveKat = rawKat > 0 ? finalKatVal : 1;
+                const katBrutKapasitesi = toplamBrutKapasite / effectiveKat;
                 
                 let suanKullanilanBrut = 0;
                 let suanToplamDaire = 0;
@@ -454,7 +444,7 @@
                     suanToplamDaire += d.adet;
                 });
                 
-                const yerlesimUygun = checkKapasite(sepet, rawKat > 0 ? finalKatVal : 0, katBrutKapasitesi);
+                const yerlesimUygun = checkKapasite(sepet, rawKat > 0 ? finalKatVal : 1, katBrutKapasitesi);
 
                 setOzet({
                     emsalAlani: emsalAlani,
@@ -518,7 +508,7 @@
                                         </div>
 
                                         <div className="group">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1 group-focus-within:text-[#1D63CB]">Yola Terk Miktarı</label>
+                                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1 group-focus-within:text-[#1D63CB]">Yola Terk Mikarı</label>
                                             <div className="flex mt-1">
                                                 <input placeholder="Örn: 10" type="number" name="yolaTerkDeger" value={params.yolaTerkDeger} onChange={handleParamChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-l-2xl focus:ring-2 focus:ring-[#1D63CB] focus:bg-white outline-none font-bold shadow-sm" />
                                                 <select name="yolaTerkBirim" value={params.yolaTerkBirim} onChange={handleParamChange} className="bg-slate-100 border border-l-0 border-slate-200 rounded-r-2xl px-4 font-bold text-slate-600 outline-none hover:bg-slate-200 transition-colors">
@@ -610,8 +600,10 @@
                                             {Object.keys(DAİRE_STANDARTLARI).map((oda) => {
                                                 const s = DAİRE_STANDARTLARI[oda].Orta;
                                                 
-                                                const tamKatSayisi = Math.floor(ozet.katSayisi || 0);
-                                                const bucukKisim = (ozet.katSayisi || 0) - tamKatSayisi;
+                                                // Senaryoların hatasız çalışması için, eğer kat girilmediyse 1 olarak kabul et.
+                                                const varsayilanKat = ozet.katSayisi > 0 ? ozet.katSayisi : 1;
+                                                const tamKatSayisi = Math.floor(varsayilanKat);
+                                                const bucukKisim = varsayilanKat - tamKatSayisi;
                                                 
                                                 const adetPerTamKat = Math.floor((ozet.katBrutKapasitesi || 0) / s.brut);
                                                 const adetBucukKat = bucukKisim > 0 ? Math.floor(((ozet.katBrutKapasitesi || 0) * bucukKisim) / s.brut) : 0;
@@ -703,7 +695,8 @@
                                                         const s = DAİRE_STANDARTLARI[oda][boyut];
                                                         
                                                         const testSepet = { ...sepet, [key]: { ...s, adet: adet + 1, odaTipi: oda, boyut } };
-                                                        const asarMi = !checkKapasite(testSepet, ozet.katSayisi, ozet.katBrutKapasitesi);
+                                                        const varsayilanKat = ozet.katSayisi > 0 ? ozet.katSayisi : 1;
+                                                        const asarMi = !checkKapasite(testSepet, varsayilanKat, ozet.katBrutKapasitesi);
 
                                                         const label = boyut === 'Kucuk' ? 'KÜÇÜK' : boyut === 'Orta' ? 'ORTA' : 'BÜYÜK';
                                                         const badgeColor = boyut === 'Kucuk' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : boyut === 'Orta' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-orange-50 text-orange-600 border-orange-100';
