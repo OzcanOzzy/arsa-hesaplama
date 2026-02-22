@@ -15,6 +15,9 @@
     <!-- Babel CDN (Tarayıcıda JSX okuyabilmek için) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+    <!-- HTML2PDF CDN (Doğrudan PDF İndirmek İçin) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
     <style>
         /* Yazdırırken (Rapor Alırken) arkaplan renklerinin korunması için */
         @media print {
@@ -180,24 +183,163 @@
                 });
             };
 
-            // Rapor Alma (Yazdır)
-            const handlePrint = () => {
-                window.print();
+            // Paylaşılacak ve PDF yapılacak Ortak Metin/İçerik Fonksiyonu
+            const getReportDetails = () => {
+                let manuelDetay = "";
+                let seciliVarMi = false;
+                Object.values(sepet).forEach(d => {
+                    if (d.adet > 0) {
+                        seciliVarMi = true;
+                        manuelDetay += `• ${d.odaTipi} (${d.boyut}): ${d.adet} Adet (Net: ${d.net}m²)\n`;
+                    }
+                });
+
+                let tahminiSenaryoText = "";
+                let tahminiSenaryoHtml = "";
+                let hasTahmini = false;
+                
+                Object.keys(DAİRE_STANDARTLARI).forEach((oda) => {
+                    const s = DAİRE_STANDARTLARI[oda].Orta;
+                    const adetPerKat = Math.floor((ozet.katBrutKapasitesi || 0) / s.brut);
+                    const adet = adetPerKat * (ozet.katSayisi || 0);
+                    const kalanBrutPerKat = Math.max(0, (ozet.katBrutKapasitesi || 0) - (adetPerKat * s.brut));
+                    const kalanNetPerKat = Math.floor(kalanBrutPerKat / 1.30);
+                    
+                    const kalanNotu = kalanNetPerKat > 0 ? `(Her katta ${kalanNetPerKat} m² net boşluk kalır)` : '';
+                    
+                    if (adet > 0) {
+                        hasTahmini = true;
+                        tahminiSenaryoText += `• Sadece ${oda} yapılırsa: ${adet} Adet ${kalanNotu}\n`;
+                        tahminiSenaryoHtml += `<li style="padding: 8px 0; border-bottom: 1px dashed #cbd5e1;"><strong>Sadece ${oda} yapılırsa:</strong> ${adet} Adet <span style="color: #64748b; font-size: 13px; margin-left: 5px;">${kalanNotu}</span></li>`;
+                    }
+                });
+
+                if (!hasTahmini) {
+                    tahminiSenaryoText += "• Bu imar durumuna göre standart daire sığmamaktadır.\n";
+                    tahminiSenaryoHtml += `<li style="padding: 8px 0; color: #ef4444;">Bu imar durumuna göre standart daire sığmamaktadır.</li>`;
+                }
+
+                const verimlilik = seciliVarMi && ozet.kullanilanM2 ? ((ozet.toplamNetM2 / ozet.kullanilanM2) * 100).toFixed(1) : "0.0";
+                
+                return { manuelDetay, seciliVarMi, verimlilik, tahminiSenaryoText, tahminiSenaryoHtml };
             };
 
-            // Paylaş (Pano Kopyalama)
-            const handleShare = () => {
-                const textSummary = `🏢 Emlaknomi Arsa Raporu\n` +
-                                  `----------------------\n` +
-                                  `📍 Arsa Alanı: ${params.arsaAlani} m² (${params.nizamTipi} Nizam)\n` +
-                                  `🏗️ Emsal: ${params.emsal} | TAKS: ${params.taks} | Kat: ${params.katSayisi}\n` +
-                                  `📏 Toplam Brüt İnşaat: ${ozet.toplamBrutKapasite.toLocaleString(undefined, {maximumFractionDigits:0})} m²\n` +
-                                  `✅ Toplam Net İnşaat: ${ozet.toplamNetM2.toLocaleString()} m²\n` +
-                                  `🏠 Planlanan Ünite: ${ozet.toplamDaire} Adet\n` +
-                                  `----------------------\n` +
-                                  `Verimlilik Oranı: %${((ozet.toplamNetM2 / (ozet.kullanilanM2 || 1)) * 100).toFixed(1)}\n\n` +
-                                  `Emlaknomi ile hesaplanmıştır.`;
+            // Rapor Alma (Doğrudan Temiz PDF İndir)
+            const handlePrint = () => {
+                const { manuelDetay, seciliVarMi, verimlilik, tahminiSenaryoHtml } = getReportDetails();
+                
+                const netInsaatStr = seciliVarMi ? `${ozet.toplamNetM2.toLocaleString()} m²` : '<span style="color:#94a3b8; font-weight:normal;">Belirlenmedi (Manuel seçim yapılmadı)</span>';
+                const planlananUniteStr = seciliVarMi ? `${ozet.toplamDaire} Adet` : '<span style="color:#94a3b8; font-weight:normal;">Belirlenmedi (Manuel seçim yapılmadı)</span>';
+                const verimStr = seciliVarMi ? `%${verimlilik}` : '<span style="color:#94a3b8; font-weight:normal;">Belirlenmedi</span>';
+                
+                // Arka planda geçici, temiz ve PDF için uygun bir HTML yapısı oluşturuyoruz
+                const pdfElement = document.createElement('div');
+                
+                let htmlContent = `
+                    <div style="font-family: Arial, sans-serif; padding: 40px; color: #1e293b; line-height: 1.6;">
+                        <h1 style="color: #1d63cb; margin-bottom: 5px; font-size: 24px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px;">🏢 Emlaknomi Arsa Raporu</h1>
+                        
+                        <div style="margin-top: 25px;">
+                            <p><strong>📍 Arsa Alanı:</strong> ${params.arsaAlani || 0} m² (${params.nizamTipi} Nizam)</p>
+                            <p><strong>🏗️ Emsal:</strong> ${params.emsal || 0} &nbsp;|&nbsp; <strong>TAKS:</strong> ${params.taks || 0} &nbsp;|&nbsp; <strong>Kat:</strong> ${params.katSayisi || 0}</p>
+                        </div>
 
+                        <div style="margin-top: 25px; padding: 15px; background-color: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <p><strong>📏 Toplam Brüt İnşaat:</strong> ${ozet.toplamBrutKapasite.toLocaleString(undefined, {maximumFractionDigits:0})} m²</p>
+                            <p><strong>✅ Toplam Net İnşaat:</strong> ${netInsaatStr}</p>
+                            <p><strong>🏠 Planlanan Ünite:</strong> ${planlananUniteStr}</p>
+                        </div>
+
+                        <h3 style="color: #1d63cb; margin-top: 30px; font-size: 18px;">💡 TAHMİNİ SENARYOLAR</h3>
+                        <p style="font-size: 12px; color: #ef4444; margin-top: -10px; margin-bottom: 10px;">(Not: Aşağıdaki seçenekler alternatiflerdir, birbirleriyle toplanmazlar.)</p>
+                        <ul style="list-style-type: none; padding-left: 0;">
+                            ${tahminiSenaryoHtml}
+                        </ul>
+                `;
+
+                if (seciliVarMi) {
+                    let manuelHtmlLines = "";
+                    Object.values(sepet).forEach(d => {
+                        if (d.adet > 0) {
+                            manuelHtmlLines += `<li style="padding: 8px 0; border-bottom: 1px dashed #cbd5e1;"><strong>${d.odaTipi} (${d.boyut})</strong> &nbsp;&nbsp;&rarr;&nbsp;&nbsp; ${d.adet} Adet &nbsp;<span style="color: #64748b; font-size: 14px;">(Net: ${d.net}m²)</span></li>`;
+                        }
+                    });
+                    
+                    htmlContent += `
+                        <h3 style="color: #f97316; margin-top: 30px; font-size: 18px;">📌 SEÇTİĞİNİZ ODA SAYISINA GÖRE DAİRE ADETİ</h3>
+                        <ul style="list-style-type: none; padding-left: 0;">
+                            ${manuelHtmlLines}
+                        </ul>
+                    `;
+                }
+
+                htmlContent += `
+                        <p style="margin-top: 30px; font-weight: bold;">Verimlilik Oranı: ${verimStr}</p>
+                        
+                        <div style="margin-top: 50px; text-align: center; color: #94a3b8; font-size: 12px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+                            Emlaknomi ile hesaplanmıştır.
+                        </div>
+                    </div>
+                `;
+
+                pdfElement.innerHTML = htmlContent;
+
+                const opt = {
+                    margin:       0,
+                    filename:     'Emlaknomi_Proje_Raporu.pdf',
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2 },
+                    jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+                };
+
+                setToastMessage("PDF İndiriliyor...");
+                html2pdf().set(opt).from(pdfElement).save().then(() => {
+                    setTimeout(() => setToastMessage(""), 3500);
+                });
+            };
+
+            // Paylaş (WhatsApp/Web Share API ve Pano Kopyalama)
+            const handleShare = async () => {
+                const { manuelDetay, seciliVarMi, verimlilik, tahminiSenaryoText } = getReportDetails();
+
+                const netInsaatStr = seciliVarMi ? `${ozet.toplamNetM2.toLocaleString()} m²` : 'Belirlenmedi (Manuel Seçim Yok)';
+                const planlananUniteStr = seciliVarMi ? `${ozet.toplamDaire} Adet` : 'Belirlenmedi (Manuel Seçim Yok)';
+                const verimStr = seciliVarMi ? `%${verimlilik}` : 'Belirlenmedi';
+
+                let textSummary = `🏢 Emlaknomi Arsa Raporu\n` +
+                                  `----------------------\n` +
+                                  `📍 Arsa Alanı: ${params.arsaAlani || 0} m² (${params.nizamTipi} Nizam)\n` +
+                                  `🏗️ Emsal: ${params.emsal || 0} | TAKS: ${params.taks || 0} | Kat: ${params.katSayisi || 0}\n` +
+                                  `📏 Toplam Brüt İnşaat: ${ozet.toplamBrutKapasite.toLocaleString(undefined, {maximumFractionDigits:0})} m²\n` +
+                                  `✅ Toplam Net İnşaat: ${netInsaatStr}\n` +
+                                  `🏠 Planlanan Ünite: ${planlananUniteStr}\n` +
+                                  `----------------------\n\n`;
+
+                textSummary += `💡 TAHMİNİ SENARYOLAR:\n(Not: Seçenekler alternatiflerdir, toplanmazlar)\n${tahminiSenaryoText}\n----------------------\n`;
+
+                if (seciliVarMi) {
+                    textSummary += `📌 SEÇTİĞİNİZ ODA SAYISINA GÖRE DAİRE ADETİ:\n${manuelDetay}----------------------\n`;
+                }
+
+                textSummary += `Verimlilik Oranı: ${verimStr}\n\nEmlaknomi ile hesaplanmıştır.`;
+
+                // Cihaz Web Share API (WhatsApp vb. ile paylaşım menüsü) destekliyorsa onu kullan
+                if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            title: 'Emlaknomi Arsa Raporu',
+                            text: textSummary,
+                        });
+                        setToastMessage("Paylaşım menüsü açıldı!");
+                        setTimeout(() => setToastMessage(""), 3500);
+                        return; // Paylaşım başarılıysa kopyalama koduna geçme
+                    } catch (err) {
+                        console.log('Kullanıcı paylaşımı iptal etti veya bir hata oluştu.', err);
+                        // Hata olursa veya iptal edilirse fallback olarak aşağıdan kopyalamaya devam etsin.
+                    }
+                }
+
+                // Desteklemeyen cihazlar (veya masaüstü) için eski nesil fallback (kopyalama)
                 const textArea = document.createElement("textarea");
                 textArea.value = textSummary;
                 document.body.appendChild(textArea);
