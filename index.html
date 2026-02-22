@@ -98,7 +98,13 @@
             if (items.length === 0) return true;
 
             items.sort((a, b) => b - a);
-            let floors = Array(katSayisi).fill(katBrutKapasitesi);
+            
+            // Buçuklu katlar için dinamik kat dizisi oluştur (Örn: 2.5 kat -> [100, 100, 50])
+            const tamKatlar = Math.floor(katSayisi);
+            const bucukKisim = katSayisi - tamKatlar;
+            let floors = [];
+            for (let i = 0; i < tamKatlar; i++) floors.push(katBrutKapasitesi);
+            if (bucukKisim > 0) floors.push(katBrutKapasitesi * bucukKisim);
             
             for (let brut of items) {
                 let placed = false;
@@ -134,6 +140,7 @@
                 emsal: '',
                 taks: '',
                 katSayisi: '',
+                katBirim: 'kat', // Yeni alan: kat veya metre
                 nizamTipi: 'Ayrık'
             });
 
@@ -155,7 +162,7 @@
 
             const handleParamChange = (e) => {
                 const { name, value } = e.target;
-                if (name !== 'nizamTipi' && name !== 'yolaTerkBirim') {
+                if (name !== 'nizamTipi' && name !== 'yolaTerkBirim' && name !== 'katBirim') {
                     const numericValue = value === '' ? '' : parseFloat(value);
                     setParams(prev => ({ ...prev, [name]: numericValue }));
                 } else {
@@ -200,12 +207,30 @@
                 
                 Object.keys(DAİRE_STANDARTLARI).forEach((oda) => {
                     const s = DAİRE_STANDARTLARI[oda].Orta;
-                    const adetPerKat = Math.floor((ozet.katBrutKapasitesi || 0) / s.brut);
-                    const adet = adetPerKat * (ozet.katSayisi || 0);
-                    const kalanBrutPerKat = Math.max(0, (ozet.katBrutKapasitesi || 0) - (adetPerKat * s.brut));
-                    const kalanNetPerKat = Math.floor(kalanBrutPerKat / 1.30);
                     
-                    const kalanNotu = kalanNetPerKat > 0 ? `(Her katta ${kalanNetPerKat} m² net boşluk kalır)` : '';
+                    const tamKatSayisi = Math.floor(ozet.katSayisi || 0);
+                    const bucukKisim = (ozet.katSayisi || 0) - tamKatSayisi;
+                    
+                    const adetPerTamKat = Math.floor((ozet.katBrutKapasitesi || 0) / s.brut);
+                    const adetBucukKat = bucukKisim > 0 ? Math.floor(((ozet.katBrutKapasitesi || 0) * bucukKisim) / s.brut) : 0;
+                    
+                    const adet = (adetPerTamKat * tamKatSayisi) + adetBucukKat;
+                    
+                    const kalanBrutPerTamKat = Math.max(0, (ozet.katBrutKapasitesi || 0) - (adetPerTamKat * s.brut));
+                    const kalanNetPerTamKat = Math.floor(kalanBrutPerTamKat / 1.30);
+                    
+                    let kalanNotu = "";
+                    if (bucukKisim > 0) {
+                        const kalanBrutBucuk = Math.max(0, ((ozet.katBrutKapasitesi || 0) * bucukKisim) - (adetBucukKat * s.brut));
+                        const kalanNetBucuk = Math.floor(kalanBrutBucuk / 1.30);
+                        if (kalanNetPerTamKat > 0 || kalanNetBucuk > 0) {
+                            kalanNotu = `(Artan Net: Normal Kat ${kalanNetPerTamKat}m², Çatı/Çekme ${kalanNetBucuk}m²)`;
+                        }
+                    } else {
+                        if (kalanNetPerTamKat > 0) {
+                            kalanNotu = `(Her katta ${kalanNetPerTamKat} m² net boşluk kalır)`;
+                        }
+                    }
                     
                     if (adet > 0) {
                         hasTahmini = true;
@@ -236,6 +261,8 @@
                 const planlananUniteStr = seciliVarMi ? `${ozet.toplamDaire} Adet` : '<span style="color:#94a3b8; font-weight:normal;">Belirlenmedi (Manuel seçim yapılmadı)</span>';
                 const verimStr = seciliVarMi ? `%${verimlilik}` : '<span style="color:#94a3b8; font-weight:normal;">Belirlenmedi</span>';
                 
+                const katBilgisi = params.katBirim === 'metre' ? `Yükseklik: ${params.katSayisi}m (~${ozet.katSayisi} Kat)` : `Kat: ${params.katSayisi || 0}`;
+
                 // Arka planda geçici, temiz ve PDF için uygun bir HTML yapısı oluşturuyoruz
                 const pdfElement = document.createElement('div');
                 
@@ -245,7 +272,7 @@
                         
                         <div style="margin-top: 25px;">
                             <p><strong>📍 Arsa Alanı:</strong> ${params.arsaAlani || 0} m² (${params.nizamTipi} Nizam)</p>
-                            <p><strong>🏗️ Emsal:</strong> ${params.emsal || 0} &nbsp;|&nbsp; <strong>TAKS:</strong> ${params.taks || 0} &nbsp;|&nbsp; <strong>Kat:</strong> ${params.katSayisi || 0}</p>
+                            <p><strong>🏗️ Emsal:</strong> ${params.emsal || 0} &nbsp;|&nbsp; <strong>TAKS:</strong> ${params.taks || 0} &nbsp;|&nbsp; <strong>${katBilgisi}</strong></p>
                         </div>
 
                         <div style="margin-top: 25px; padding: 15px; background-color: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
@@ -255,7 +282,7 @@
                         </div>
 
                         <h3 style="color: #1d63cb; margin-top: 30px; font-size: 18px;">💡 TAHMİNİ SENARYOLAR</h3>
-                        <p style="font-size: 12px; color: #ef4444; margin-top: -10px; margin-bottom: 10px;"></p>
+                        <p style="font-size: 12px; color: #ef4444; margin-top: -10px; margin-bottom: 10px;">(Not: Aşağıdaki seçenekler alternatiflerdir, birbirleriyle toplanmazlar.)</p>
                         <ul style="list-style-type: none; padding-left: 0;">
                             ${tahminiSenaryoHtml}
                         </ul>
@@ -313,11 +340,13 @@
                 
                 const planlananUniteStr = seciliVarMi ? `${ozet.toplamDaire} Adet` : 'Belirlenmedi (Manuel Seçim Yok)';
                 const verimStr = seciliVarMi ? `%${verimlilik}` : 'Belirlenmedi';
+                
+                const katBilgisi = params.katBirim === 'metre' ? `Yükseklik: ${params.katSayisi}m (~${ozet.katSayisi} Kat)` : `Kat: ${params.katSayisi || 0}`;
 
                 let textSummary = `🏢 Emlaknomi Arsa Raporu\n` +
                                   `----------------------\n` +
                                   `📍 Arsa Alanı: ${params.arsaAlani || 0} m² (${params.nizamTipi} Nizam)\n` +
-                                  `🏗️ Emsal: ${params.emsal || 0} | TAKS: ${params.taks || 0} | Kat: ${params.katSayisi || 0}\n` +
+                                  `🏗️ Emsal: ${params.emsal || 0} | TAKS: ${params.taks || 0} | ${katBilgisi}\n` +
                                   `📏 Toplam Brüt İnşaat: ${ozet.toplamBrutKapasite.toLocaleString(undefined, {maximumFractionDigits:0})} m²\n` +
                                   `✅ Toplam Net İnşaat: ${netInsaatStr}\n` +
                                   `🏠 Planlanan Ünite: ${planlananUniteStr}\n` +
@@ -363,36 +392,38 @@
             };
 
             useEffect(() => {
-                const arsaVal = params.arsaAlani || 0;
-                const terkVal = params.yolaTerkDeger || 0;
-                let emsalVal = params.emsal || 0;
-                let taksVal = params.taks || 0;
-                const katVal = Math.max(1, params.katSayisi || 1); 
+                const arsaVal = parseFloat(params.arsaAlani) || 0;
+                const terkVal = parseFloat(params.yolaTerkDeger) || 0;
+                let emsalVal = parseFloat(params.emsal) || 0;
+                let taksVal = parseFloat(params.taks) || 0;
+                let rawKat = parseFloat(params.katSayisi) || 0; 
+                let isMetre = params.katBirim === 'metre';
 
                 // --- AKILLI DEĞER DÜZELTME (PARSING) ---
-                
-                // 1. TAKS Düzeltmesi (TAKS maksimum 1.0 olabilir, büyükse kullanıcı % yazmak istemiştir)
                 if (taksVal > 1) {
                     if (taksVal >= 10) taksVal = taksVal / 100; // Örn: 30 -> 0.30
                     else taksVal = taksVal / 10; // Örn: 3 -> 0.30
                 }
 
-                // 2. EMSAL Düzeltmesi (Kat sayısından daha büyük bir emsal fiziksel olarak imkansızdır)
-                if (emsalVal > katVal) {
+                if (emsalVal > rawKat && rawKat > 0) {
                     if (emsalVal >= 100) {
                         emsalVal = emsalVal / 100; // Örn: 150 -> 1.50
                     } else if (emsalVal >= 10) {
-                        // Eğer rakam 10'dan büyükse, virgül unutulmuş olabilir (15 -> 1.5)
-                        // Ancak kat sayısını geçiyorsa ve 30 gibi bir rakamsa, aslında 0.30 demek istenmiştir.
-                        if ((emsalVal / 10) > katVal || emsalVal === 30) {
+                        if ((emsalVal / 10) > rawKat || emsalVal === 30) {
                             emsalVal = emsalVal / 100; // Örn: 30 -> 0.30
                         } else {
                             emsalVal = emsalVal / 10; // Örn: 15 -> 1.5
                         }
                     }
                 }
-                
                 // ----------------------------------------
+                
+                // Yükseklik (Metre) -> Kat Dönüşümü (3 Metre = 1 Kat varsayımı, 0.5 payı ile)
+                let finalKatVal = 1;
+                if (rawKat > 0) {
+                    finalKatVal = isMetre ? Math.round((rawKat / 3) * 2) / 2 : rawKat;
+                    finalKatVal = Math.max(0.5, finalKatVal); // Çatı payı dahil minimum 0.5 kat
+                }
 
                 let netArsa = arsaVal;
                 if (params.yolaTerkBirim === '%') {
@@ -404,12 +435,14 @@
                 const maksTaban = netArsa * taksVal;
                 let emsalAlani = netArsa * emsalVal;
                 
-                if (katVal > 0 && (emsalAlani / katVal) > maksTaban) {
-                    emsalAlani = maksTaban * katVal;
+                // H Kısıtlaması (Kat sınırlamasına göre maksimum alanı denetleme)
+                if (finalKatVal > 0 && (emsalAlani / finalKatVal) > maksTaban) {
+                    emsalAlani = maksTaban * finalKatVal;
                 }
 
                 const toplamBrutKapasite = emsalAlani * 1.30; 
-                const katBrutKapasitesi = toplamBrutKapasite / katVal;
+                // Kat başı brüt, emsalin buçuklu kat dahil total dağılımını ifade eder.
+                const katBrutKapasitesi = finalKatVal > 0 ? toplamBrutKapasite / finalKatVal : 0;
                 
                 let suanKullanilanBrut = 0;
                 let suanToplamDaire = 0;
@@ -421,7 +454,7 @@
                     suanToplamDaire += d.adet;
                 });
                 
-                const yerlesimUygun = checkKapasite(sepet, katVal, katBrutKapasitesi);
+                const yerlesimUygun = checkKapasite(sepet, rawKat > 0 ? finalKatVal : 0, katBrutKapasitesi);
 
                 setOzet({
                     emsalAlani: emsalAlani,
@@ -431,7 +464,7 @@
                     netArsa: netArsa,
                     toplamDaire: suanToplamDaire,
                     toplamNetM2: suanNetM2,
-                    katSayisi: katVal,
+                    katSayisi: rawKat > 0 ? finalKatVal : 0,
                     katBrutKapasitesi: katBrutKapasitesi,
                     yerlesimUygun: yerlesimUygun
                 });
@@ -517,8 +550,19 @@
                                         </div>
 
                                         <div>
-                                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Kat Sayısı</label>
-                                            <input placeholder="Örn: 5" type="number" name="katSayisi" value={params.katSayisi} onChange={handleParamChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#1D63CB] outline-none font-bold mt-1 shadow-sm" />
+                                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Kat Sayısı / Yükseklik</label>
+                                            <div className="flex mt-1">
+                                                <input placeholder="Örn: 2 veya 2.5" type="number" step="0.5" name="katSayisi" value={params.katSayisi} onChange={handleParamChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-l-2xl focus:ring-2 focus:ring-[#1D63CB] focus:bg-white outline-none font-bold shadow-sm" />
+                                                <select name="katBirim" value={params.katBirim} onChange={handleParamChange} className="bg-slate-100 border border-l-0 border-slate-200 rounded-r-2xl px-2 text-xs font-bold text-slate-600 outline-none hover:bg-slate-200 transition-colors">
+                                                    <option value="kat">Kat</option>
+                                                    <option value="metre">Metre (H)</option>
+                                                </select>
+                                            </div>
+                                            {params.katBirim === 'metre' && params.katSayisi > 0 && (
+                                                <div className="text-[10px] text-[#1D63CB] font-bold mt-2 ml-1">
+                                                    Hesaplanan: {ozet.katSayisi} Kat <span className="opacity-60">(Çatı payı hesaba katıldı)</span>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -543,7 +587,7 @@
                                                 <span className="font-bold text-white">{ozet.emsalAlani.toLocaleString(undefined, {maximumFractionDigits:0})} m²</span>
                                             </div>
                                             <div className="flex justify-between items-center text-xs">
-                                                <span className="text-blue-100/60 font-medium">Kat Başına Brüt Alan:</span>
+                                                <span className="text-blue-100/60 font-medium">Kat Başına Brüt Alan (Tam Kat):</span>
                                                 <span className="font-bold text-white">{ozet.katBrutKapasitesi.toLocaleString(undefined, {maximumFractionDigits:0})} m²</span>
                                             </div>
                                             <div className="flex justify-between items-center text-xs">
@@ -565,12 +609,30 @@
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                             {Object.keys(DAİRE_STANDARTLARI).map((oda) => {
                                                 const s = DAİRE_STANDARTLARI[oda].Orta;
-                                                const adetPerKat = Math.floor((ozet.katBrutKapasitesi || 0) / s.brut);
-                                                const adet = adetPerKat * (ozet.katSayisi || 0);
                                                 
-                                                // Her katta artan alanın hesabı
-                                                const kalanBrutPerKat = Math.max(0, (ozet.katBrutKapasitesi || 0) - (adetPerKat * s.brut));
-                                                const kalanNetPerKat = Math.floor(kalanBrutPerKat / 1.30);
+                                                const tamKatSayisi = Math.floor(ozet.katSayisi || 0);
+                                                const bucukKisim = (ozet.katSayisi || 0) - tamKatSayisi;
+                                                
+                                                const adetPerTamKat = Math.floor((ozet.katBrutKapasitesi || 0) / s.brut);
+                                                const adetBucukKat = bucukKisim > 0 ? Math.floor(((ozet.katBrutKapasitesi || 0) * bucukKisim) / s.brut) : 0;
+                                                
+                                                const adet = (adetPerTamKat * tamKatSayisi) + adetBucukKat;
+                                                
+                                                const kalanBrutPerTamKat = Math.max(0, (ozet.katBrutKapasitesi || 0) - (adetPerTamKat * s.brut));
+                                                const kalanNetPerTamKat = Math.floor(kalanBrutPerTamKat / 1.30);
+                                                
+                                                let kalanNotu = "";
+                                                if (bucukKisim > 0) {
+                                                    const kalanBrutBucuk = Math.max(0, ((ozet.katBrutKapasitesi || 0) * bucukKisim) - (adetBucukKat * s.brut));
+                                                    const kalanNetBucuk = Math.floor(kalanBrutBucuk / 1.30);
+                                                    if (kalanNetPerTamKat > 0 || kalanNetBucuk > 0) {
+                                                        kalanNotu = `Artan Net: Kat ${kalanNetPerTamKat}m², Çatı ${kalanNetBucuk}m²`;
+                                                    }
+                                                } else {
+                                                    if (kalanNetPerTamKat > 0) {
+                                                        kalanNotu = `Her katta ${kalanNetPerTamKat} m² net boşluk kalır`;
+                                                    }
+                                                }
 
                                                 return (
                                                     <div key={oda} className="bg-white/5 p-5 rounded-3xl border border-white/10 flex flex-col items-center text-center hover:bg-white/10 transition-colors cursor-default group">
@@ -582,10 +644,9 @@
                                                             <div className="bg-white/10 px-2 py-0.5 rounded text-blue-200">Brüt: {s.brut}m²</div>
                                                             <div className="text-white/30 mb-2">Net: {s.net}m²</div>
                                                             
-                                                            {/* Artan Net Alan Bilgisi */}
-                                                            {kalanNetPerKat > 0 && ozet.katBrutKapasitesi > 0 && (
+                                                            {kalanNotu && ozet.katBrutKapasitesi > 0 && (
                                                                 <div className="mt-3 text-[9px] text-[#FF8C00] font-medium bg-[#FF8C00]/10 px-2 py-1.5 rounded-lg w-full text-center border border-[#FF8C00]/20 leading-snug">
-                                                                    Her katta {kalanNetPerKat} m² net alan kalıyor
+                                                                    {kalanNotu}
                                                                 </div>
                                                             )}
                                                         </div>
