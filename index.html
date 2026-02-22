@@ -123,13 +123,14 @@
         );
 
         function App() {
+            // Başlangıç değerleri tamamen boş olacak şekilde düzenlendi
             const [params, setParams] = useState({
-                arsaAlani: 1000,
-                yolaTerkDeger: 10,
+                arsaAlani: '',
+                yolaTerkDeger: '',
                 yolaTerkBirim: 'm2',
-                emsal: 1.5,
-                taks: 0.30,
-                katSayisi: 5,
+                emsal: '',
+                taks: '',
+                katSayisi: '',
                 nizamTipi: 'Ayrık'
             });
 
@@ -144,7 +145,7 @@
                 netArsa: 0,
                 toplamDaire: 0,
                 toplamNetM2: 0,
-                katSayisi: 5,
+                katSayisi: 0,
                 katBrutKapasitesi: 0,
                 yerlesimUygun: true
             });
@@ -194,10 +195,9 @@
                                   `✅ Toplam Net İnşaat: ${ozet.toplamNetM2.toLocaleString()} m²\n` +
                                   `🏠 Planlanan Ünite: ${ozet.toplamDaire} Adet\n` +
                                   `----------------------\n` +
-                                  `Verimlilik Oranı: %${((ozet.toplamNetM2 / ozet.kullanilanM2) * 100).toFixed(1)}\n\n` +
+                                  `Verimlilik Oranı: %${((ozet.toplamNetM2 / (ozet.kullanilanM2 || 1)) * 100).toFixed(1)}\n\n` +
                                   `Emlaknomi ile hesaplanmıştır.`;
 
-                // document.execCommand fallback (iFrame ve tüm tarayıcılar için daha güvenli)
                 const textArea = document.createElement("textarea");
                 textArea.value = textSummary;
                 document.body.appendChild(textArea);
@@ -215,9 +215,34 @@
             useEffect(() => {
                 const arsaVal = params.arsaAlani || 0;
                 const terkVal = params.yolaTerkDeger || 0;
-                const emsalVal = params.emsal || 0;
-                const taksVal = params.taks || 0;
+                let emsalVal = params.emsal || 0;
+                let taksVal = params.taks || 0;
                 const katVal = Math.max(1, params.katSayisi || 1); 
+
+                // --- AKILLI DEĞER DÜZELTME (PARSING) ---
+                
+                // 1. TAKS Düzeltmesi (TAKS maksimum 1.0 olabilir, büyükse kullanıcı % yazmak istemiştir)
+                if (taksVal > 1) {
+                    if (taksVal >= 10) taksVal = taksVal / 100; // Örn: 30 -> 0.30
+                    else taksVal = taksVal / 10; // Örn: 3 -> 0.30
+                }
+
+                // 2. EMSAL Düzeltmesi (Kat sayısından daha büyük bir emsal fiziksel olarak imkansızdır)
+                if (emsalVal > katVal) {
+                    if (emsalVal >= 100) {
+                        emsalVal = emsalVal / 100; // Örn: 150 -> 1.50
+                    } else if (emsalVal >= 10) {
+                        // Eğer rakam 10'dan büyükse, virgül unutulmuş olabilir (15 -> 1.5)
+                        // Ancak kat sayısını geçiyorsa ve 30 gibi bir rakamsa, aslında 0.30 demek istenmiştir.
+                        if ((emsalVal / 10) > katVal || emsalVal === 30) {
+                            emsalVal = emsalVal / 100; // Örn: 30 -> 0.30
+                        } else {
+                            emsalVal = emsalVal / 10; // Örn: 15 -> 1.5
+                        }
+                    }
+                }
+                
+                // ----------------------------------------
 
                 let netArsa = arsaVal;
                 if (params.yolaTerkBirim === '%') {
@@ -306,13 +331,13 @@
                                     <div className="space-y-4">
                                         <div className="group">
                                             <label className="text-[10px] font-black text-slate-400 uppercase ml-1 transition-colors group-focus-within:text-[#1D63CB]">Arsa Alanı (m²)</label>
-                                            <input type="number" name="arsaAlani" value={params.arsaAlani} onChange={handleParamChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#1D63CB] focus:bg-white outline-none font-bold mt-1 shadow-sm transition-all" />
+                                            <input placeholder="Örn: 1000" type="number" name="arsaAlani" value={params.arsaAlani} onChange={handleParamChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#1D63CB] focus:bg-white outline-none font-bold mt-1 shadow-sm transition-all" />
                                         </div>
 
                                         <div className="group">
                                             <label className="text-[10px] font-black text-slate-400 uppercase ml-1 group-focus-within:text-[#1D63CB]">Yola Terk Mikarı</label>
                                             <div className="flex mt-1">
-                                                <input type="number" name="yolaTerkDeger" value={params.yolaTerkDeger} onChange={handleParamChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-l-2xl focus:ring-2 focus:ring-[#1D63CB] focus:bg-white outline-none font-bold shadow-sm" />
+                                                <input placeholder="Örn: 10" type="number" name="yolaTerkDeger" value={params.yolaTerkDeger} onChange={handleParamChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-l-2xl focus:ring-2 focus:ring-[#1D63CB] focus:bg-white outline-none font-bold shadow-sm" />
                                                 <select name="yolaTerkBirim" value={params.yolaTerkBirim} onChange={handleParamChange} className="bg-slate-100 border border-l-0 border-slate-200 rounded-r-2xl px-4 font-bold text-slate-600 outline-none hover:bg-slate-200 transition-colors">
                                                     <option value="m2">m²</option>
                                                     <option value="%">%</option>
@@ -333,17 +358,17 @@
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Emsal (KAKS)</label>
-                                                <input type="number" name="emsal" step="0.1" value={params.emsal} onChange={handleParamChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#1D63CB] outline-none font-bold mt-1 shadow-sm" />
+                                                <input placeholder="Örn: 1.5" type="number" name="emsal" step="0.1" value={params.emsal} onChange={handleParamChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#1D63CB] outline-none font-bold mt-1 shadow-sm" />
                                             </div>
                                             <div>
                                                 <label className="text-[10px] font-black text-slate-400 uppercase ml-1">TAKS (Oturum)</label>
-                                                <input type="number" name="taks" step="0.01" value={params.taks} onChange={handleParamChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#1D63CB] outline-none font-bold mt-1 shadow-sm" />
+                                                <input placeholder="Örn: 0.30" type="number" name="taks" step="0.01" value={params.taks} onChange={handleParamChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#1D63CB] outline-none font-bold mt-1 shadow-sm" />
                                             </div>
                                         </div>
 
                                         <div>
                                             <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Kat Sayısı</label>
-                                            <input type="number" name="katSayisi" value={params.katSayisi} onChange={handleParamChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#1D63CB] outline-none font-bold mt-1 shadow-sm" />
+                                            <input placeholder="Örn: 5" type="number" name="katSayisi" value={params.katSayisi} onChange={handleParamChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#1D63CB] outline-none font-bold mt-1 shadow-sm" />
                                         </div>
                                     </div>
                                 </div>
@@ -390,8 +415,8 @@
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                             {Object.keys(DAİRE_STANDARTLARI).map((oda) => {
                                                 const s = DAİRE_STANDARTLARI[oda].Orta;
-                                                const adetPerKat = Math.floor(ozet.katBrutKapasitesi / s.brut);
-                                                const adet = adetPerKat * ozet.katSayisi;
+                                                const adetPerKat = Math.floor((ozet.katBrutKapasitesi || 0) / s.brut);
+                                                const adet = adetPerKat * (ozet.katSayisi || 0);
                                                 return (
                                                     <div key={oda} className="bg-white/5 p-5 rounded-3xl border border-white/10 flex flex-col items-center text-center hover:bg-white/10 transition-colors cursor-default group">
                                                         <div className="text-[10px] font-black text-blue-400 mb-1 uppercase tracking-wider group-hover:text-blue-300 transition-colors">{oda} Tipi</div>
