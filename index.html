@@ -14,10 +14,15 @@ import {
   Home,
   Map as MapIcon,
   PieChart,
-  AlertTriangle
+  AlertTriangle,
+  Calculator,
+  FileText,
+  Share2
 } from 'lucide-react';
 
-// Net alanlara göre brüt alanları otomatik hesaplayan yardımcı fonksiyon (%30 brüt payı)
+/**
+ * Net alanlara göre brüt alanları otomatik hesaplayan yardımcı fonksiyon (%30 brüt payı)
+ */
 const calcBrut = (net) => Math.round(net * 1.30);
 
 const DAİRE_STANDARTLARI = {
@@ -41,6 +46,38 @@ const DAİRE_STANDARTLARI = {
     Orta: { net: 160, brut: calcBrut(160) },
     Buyuk: { net: 180, brut: calcBrut(180) }
   }
+};
+
+/**
+ * Dairelerin katlara sığıp sığmadığını kontrol eden Bin Packing algoritması
+ */
+const checkKapasite = (testSepet, katSayisi, katBrutKapasitesi) => {
+    if (!katSayisi || katSayisi <= 0) return true;
+    
+    let items = [];
+    Object.values(testSepet).forEach(d => {
+        for(let i=0; i<d.adet; i++) items.push(d.brut);
+    });
+    
+    if (items.length === 0) return true;
+
+    // Büyükten küçüğe sırala (First Fit Decreasing mantığı ile optimum yerleşim)
+    items.sort((a, b) => b - a);
+    let floors = Array(katSayisi).fill(katBrutKapasitesi);
+    
+    for (let brut of items) {
+        let placed = false;
+        for (let i = 0; i < floors.length; i++) {
+            // Küsürat hatalarını önlemek için küçük bir tolerans (+0.01)
+            if (floors[i] + 0.01 >= brut) {
+                floors[i] -= brut;
+                placed = true;
+                break;
+            }
+        }
+        if (!placed) return false; // Hiçbir kata sığmadıysa işlem geçersiz
+    }
+    return true;
 };
 
 /**
@@ -76,10 +113,13 @@ export default function App() {
     dolulukOrani: 0,
     netArsa: 0,
     toplamDaire: 0,
-    toplamNetM2: 0
+    toplamNetM2: 0,
+    katSayisi: 5,
+    katBrutKapasitesi: 0,
+    yerlesimUygun: true
   });
 
-  // Giriş alanlarındaki 0 sorununu çözen fonksiyon
+  // Giriş alanlarındaki değişimleri yöneten fonksiyon
   const handleParamChange = (e) => {
     const { name, value } = e.target;
     if (name !== 'nizamTipi' && name !== 'yolaTerkBirim') {
@@ -93,28 +133,31 @@ export default function App() {
   const updateAdet = (odaTipi, boyut, delta) => {
     const key = `${odaTipi}-${boyut}`;
     const daireData = DAİRE_STANDARTLARI[odaTipi][boyut];
-    
-    // Kapasite kontrolü: Eğer ekleme yapılıyorsa ve kalan kapasite yetmiyorsa işlemi engelle
-    if (delta > 0) {
-        const yeniKullanilan = ozet.kullanilanM2 + daireData.brut;
-        if (yeniKullanilan > ozet.toplamBrutKapasite) {
-            return; // Kapasite aşılamaz
-        }
-    }
 
     setSepet(prev => {
       const mevcut = prev[key] || { adet: 0, odaTipi, boyut, ...daireData };
       const yeniAdet = Math.max(0, mevcut.adet + delta);
+      
+      // Ekleme yapılıyorsa gerçek fiziksel kat yerleşimini kontrol et
+      if (delta > 0) {
+          const testSepet = { ...prev, [key]: { ...mevcut, adet: yeniAdet } };
+          const sigarMi = checkKapasite(testSepet, ozet.katSayisi, ozet.katBrutKapasitesi);
+          if (!sigarMi) {
+              return prev; // Kata sığmıyorsa mevcut state'i koru
+          }
+      }
+      
       return { ...prev, [key]: { ...mevcut, adet: yeniAdet } };
     });
   };
 
+  // İmar ve Kapasite Hesaplama Motoru
   useEffect(() => {
     const arsaVal = params.arsaAlani || 0;
     const terkVal = params.yolaTerkDeger || 0;
     const emsalVal = params.emsal || 0;
     const taksVal = params.taks || 0;
-    const katVal = params.katSayisi || 0;
+    const katVal = Math.max(1, params.katSayisi || 1); // Sıfıra bölünmeyi engelle
 
     // 1. Net Arsa Hesabı
     let netArsa = arsaVal;
@@ -130,13 +173,14 @@ export default function App() {
     // 3. Emsal (Net İnşaat Alanı) Hesabı
     let emsalAlani = netArsa * emsalVal;
     
-    // Eğer kat sayısı ve TAKS çarpımı emsali kısıtlıyorsa düzeltme
+    // Eğer kat sayısı ve TAKS çarpımı emsali kısıtlıyorsa düzeltme (H=Kat sınırlaması)
     if (katVal > 0 && (emsalAlani / katVal) > maksTaban) {
       emsalAlani = maksTaban * katVal;
     }
 
-    // 4. Toplam Brüt Kapasite Hesabı (Emsal + %30 Emsal Dışı Alanlar)
+    // 4. Toplam Brüt Kapasite Hesabı (Emsal + %30 Emsal Dışı Alanlar/Eklentiler)
     const toplamBrutKapasite = emsalAlani * 1.30; 
+    const katBrutKapasitesi = toplamBrutKapasite / katVal;
     
     let suanKullanilanBrut = 0;
     let suanToplamDaire = 0;
@@ -147,6 +191,9 @@ export default function App() {
       suanNetM2 += (d.adet * d.net);
       suanToplamDaire += d.adet;
     });
+    
+    // Sepetteki ürünler güncel TAKS ve Kat parametrelerine uyuyor mu? (Örn: taks düşürülürse uymayabilir)
+    const yerlesimUygun = checkKapasite(sepet, katVal, katBrutKapasitesi);
 
     setOzet({
       emsalAlani: emsalAlani,
@@ -155,7 +202,10 @@ export default function App() {
       dolulukOrani: toplamBrutKapasite > 0 ? (suanKullanilanBrut / toplamBrutKapasite) * 100 : 0,
       netArsa: netArsa,
       toplamDaire: suanToplamDaire,
-      toplamNetM2: suanNetM2
+      toplamNetM2: suanNetM2,
+      katSayisi: katVal,
+      katBrutKapasitesi: katBrutKapasitesi,
+      yerlesimUygun: yerlesimUygun
     });
   }, [params, sepet]);
 
@@ -164,20 +214,31 @@ export default function App() {
       <div className="max-w-6xl mx-auto space-y-8">
         
         {/* Header Section */}
-        <div className="flex items-center gap-5">
-          <EmlaknomiLogo />
-          <div>
-            <h1 className="text-3xl font-black text-slate-800 tracking-tight capitalize leading-none">Emlaknomi</h1>
-            <p className="text-[#1D63CB] font-bold text-xs uppercase tracking-[0.2em] mt-1 flex items-center gap-2">
-               <MapIcon className="w-3 h-3" /> Arsa Hesaplama Programı
-            </p>
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-5">
+            <EmlaknomiLogo />
+            <div>
+              <h1 className="text-3xl font-black text-slate-800 tracking-tight capitalize leading-none">Emlaknomi</h1>
+              <p className="text-[#1D63CB] font-bold text-xs uppercase tracking-[0.2em] mt-1 flex items-center gap-2">
+                 <MapIcon className="w-3 h-3" /> Arsa Hesaplama Programı
+              </p>
+            </div>
           </div>
-        </div>
+          
+          <div className="flex gap-2">
+             <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
+                <Share2 className="w-4 h-4" /> Paylaş
+             </button>
+             <button className="flex items-center gap-2 px-4 py-2 bg-[#1D63CB] text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-all shadow-md">
+                <FileText className="w-4 h-4" /> Rapor Al
+             </button>
+          </div>
+        </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
-          {/* Sol Kolon */}
-          <div className="lg:col-span-4 space-y-6">
+          {/* Sol Kolon: Veri Girişi ve Arsa Bilgileri */}
+          <aside className="lg:col-span-4 space-y-6">
             <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200">
               <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
                 <Ruler className="w-4 h-4 text-[#FF8C00]" /> 1. Arsa Bilgilerini Girin
@@ -227,7 +288,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* İnşaat Kapasite Kartı - Net/Brüt Ayrımı */}
+            {/* İnşaat Kapasite Kartı */}
             <div className="bg-[#1D63CB] rounded-[2rem] p-8 text-white shadow-xl relative overflow-hidden">
                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
                <div className="relative z-10 space-y-6">
@@ -248,30 +309,39 @@ export default function App() {
                         <span className="font-bold text-white">{ozet.emsalAlani.toLocaleString(undefined, {maximumFractionDigits:0})} m²</span>
                     </div>
                     <div className="flex justify-between items-center text-xs">
+                        <span className="text-blue-100/60 font-medium">Kat Başına Brüt Alan:</span>
+                        <span className="font-bold text-white">{ozet.katBrutKapasitesi.toLocaleString(undefined, {maximumFractionDigits:0})} m²</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
                         <span className="text-blue-100/60 font-medium">Net İmar Arsa:</span>
                         <span className="font-bold text-white">{ozet.netArsa.toLocaleString()} m²</span>
                     </div>
                 </div>
               </div>
             </div>
-          </div>
+          </aside>
 
-          <div className="lg:col-span-8 space-y-8">
+          {/* Sağ Kolon: Senaryolar ve Tasarım */}
+          <main className="lg:col-span-8 space-y-8">
             {/* Hızlı Senaryolar */}
-            <div className="bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl border border-slate-800 text-white relative overflow-hidden">
+            <section className="bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl border border-slate-800 text-white relative overflow-hidden">
               <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl"></div>
               <div className="relative z-10">
                 <h2 className="text-xs font-bold text-[#FF8C00] uppercase tracking-widest mb-6 flex items-center gap-2">
-                  <LayoutGrid className="w-4 h-4" /> Kapasite Senaryoları (Orta Ölçek)
+                  <LayoutGrid className="w-4 h-4" /> Tahmini Senaryo (Detaylı sorgu için sayfayı aşağıya indiriniz.)
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {Object.keys(DAİRE_STANDARTLARI).map((oda) => {
                     const s = DAİRE_STANDARTLARI[oda].Orta;
-                    const adet = Math.floor(ozet.toplamBrutKapasite / s.brut);
+                    // Her kata kaç tane sığıyorsa o sayıyı kat sayısıyla çarparak kapasiteyi buluyoruz
+                    const adetPerKat = Math.floor(ozet.katBrutKapasitesi / s.brut);
+                    const adet = adetPerKat * ozet.katSayisi;
                     return (
                       <div key={oda} className="bg-white/5 p-5 rounded-3xl border border-white/10 flex flex-col items-center text-center hover:bg-white/10 transition-colors cursor-default group">
                         <div className="text-[10px] font-black text-blue-400 mb-1 uppercase tracking-wider group-hover:text-blue-300 transition-colors">{oda} Tipi</div>
-                        <div className="text-4xl font-black text-white leading-tight">{adet}</div>
+                        <div className="flex items-baseline justify-center gap-1 text-4xl font-black text-white leading-tight whitespace-nowrap">
+                          {adet} <span className="text-[10px] text-white/50 font-bold uppercase tracking-widest">Adet</span>
+                        </div>
                         <div className="text-[10px] font-bold text-white/60 mt-2 space-y-0.5">
                           <div className="bg-white/10 px-2 py-0.5 rounded text-blue-200">Brüt: {s.brut}m²</div>
                           <div className="text-white/30">Net: {s.net}m²</div>
@@ -281,26 +351,29 @@ export default function App() {
                   })}
                 </div>
               </div>
-            </div>
+            </section>
 
-            {/* Proje Tasarımı */}
-            <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200 overflow-hidden">
+            {/* Manuel Proje Tasarımı */}
+            <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200 overflow-hidden">
               <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
                 <div>
                   <h2 className="text-sm font-bold text-slate-800 uppercase tracking-tight flex items-center gap-2">
-                    <Home className="w-5 h-5 text-[#1D63CB]" /> Dilerseniz aşağıdan oda sayısı tiplerini kendiniz belirleyebilirsiniz.
+                    <Home className="w-5 h-5 text-[#1D63CB]" /> Aşağıdan istediğiniz oda sayılarını seçebilirsiniz.
                   </h2>
-                  <p className="text-xs text-slate-400 font-medium mt-1">İmar sınırlarına göre daire sayılarını manuel belirleyin.</p>
+                  <p className="text-xs text-slate-400 font-medium mt-1">Sonuçlar en altta görünecektir..</p>
                 </div>
                 <div className="bg-slate-50 px-6 py-4 rounded-[1.5rem] border border-slate-100 text-right min-w-[140px] shadow-sm relative">
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Kapasite Kullanımı</div>
-                  <div className={`text-2xl font-black ${ozet.dolulukOrani >= 100 ? 'text-red-500' : 'text-[#1D63CB]'}`}>
+                  <div className={`text-2xl font-black ${(ozet.dolulukOrani >= 100 || !ozet.yerlesimUygun) ? 'text-red-500' : 'text-[#1D63CB]'}`}>
                     %{ozet.dolulukOrani.toFixed(1)}
                   </div>
-                  {ozet.dolulukOrani >= 100 && (
-                      <div className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full animate-pulse shadow-lg">
+                  {(ozet.dolulukOrani >= 100 || !ozet.yerlesimUygun) && (
+                      <div className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full animate-pulse shadow-lg" title={!ozet.yerlesimUygun ? "Kat planına sığmıyor!" : "Kapasite dolu"}>
                           <AlertTriangle className="w-3 h-3" />
                       </div>
+                  )}
+                  {!ozet.yerlesimUygun && (
+                      <div className="text-[9px] text-red-500 font-bold mt-1">Kat Planı Uyumsuz</div>
                   )}
                 </div>
               </div>
@@ -308,7 +381,7 @@ export default function App() {
               {/* Progress Bar */}
               <div className="w-full h-5 bg-slate-100 rounded-full overflow-hidden mb-10 shadow-inner relative border border-slate-200/50">
                 <div 
-                  className={`h-full transition-all duration-700 ease-out shadow-lg ${ozet.dolulukOrani >= 100 ? 'bg-gradient-to-r from-red-500 to-rose-600' : 'bg-gradient-to-r from-[#1D63CB] to-blue-400'}`} 
+                  className={`h-full transition-all duration-700 ease-out shadow-lg ${(ozet.dolulukOrani >= 100 || !ozet.yerlesimUygun) ? 'bg-gradient-to-r from-red-500 to-rose-600' : 'bg-gradient-to-r from-[#1D63CB] to-blue-400'}`} 
                   style={{ width: `${Math.min(100, ozet.dolulukOrani)}%` }}
                 ></div>
               </div>
@@ -317,8 +390,8 @@ export default function App() {
                 {Object.keys(DAİRE_STANDARTLARI).map((oda) => (
                   <div key={oda} className="relative">
                     <div className="flex items-center gap-4 mb-4">
-                       <span className="text-lg font-black text-slate-800">{oda}</span>
-                       <div className="h-px flex-1 bg-slate-100"></div>
+                        <span className="text-lg font-black text-slate-800">{oda}</span>
+                        <div className="h-px flex-1 bg-slate-100"></div>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -327,8 +400,9 @@ export default function App() {
                         const adet = sepet[key]?.adet || 0;
                         const s = DAİRE_STANDARTLARI[oda][boyut];
                         
-                        // Bir sonraki ekleme kapasiteyi aşar mı?
-                        const asarMi = (ozet.kullanilanM2 + s.brut) > ozet.toplamBrutKapasite;
+                        // Kapasite aşımı kontrolü (Bir sonraki eklendiğinde katlara sığar mı?)
+                        const testSepet = { ...sepet, [key]: { ...s, adet: adet + 1, odaTipi: oda, boyut } };
+                        const asarMi = !checkKapasite(testSepet, ozet.katSayisi, ozet.katBrutKapasitesi);
 
                         const label = boyut === 'Kucuk' ? 'KÜÇÜK' : boyut === 'Orta' ? 'ORTA' : 'BÜYÜK';
                         const badgeColor = boyut === 'Kucuk' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : boyut === 'Orta' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-orange-50 text-orange-600 border-orange-100';
@@ -357,7 +431,7 @@ export default function App() {
                                 onClick={() => updateAdet(oda, boyut, 1)} 
                                 disabled={asarMi} 
                                 className={`p-2.5 rounded-xl transition-all active:scale-95 ${asarMi ? 'text-slate-200 cursor-not-allowed' : 'text-[#1D63CB] hover:bg-blue-50'}`}
-                                title={asarMi ? "Kapasite yetersiz" : "Ekle"}
+                                title={asarMi ? "Kat planında yeterli alan yok" : "Ekle"}
                               >
                                 <Plus className="w-5 h-5" />
                               </button>
@@ -380,11 +454,11 @@ export default function App() {
                   <div className="text-4xl font-black text-slate-800">{ozet.toplamDaire} <span className="text-sm text-slate-400 font-bold uppercase">Adet</span></div>
                 </div>
               </div>
-            </div>
+            </section>
 
             {/* Finansal & Teknik Özet */}
             {ozet.toplamDaire > 0 && (
-              <div className="bg-gradient-to-br from-slate-900 to-[#1D63CB] rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden">
+              <section className="bg-gradient-to-br from-slate-900 to-[#1D63CB] rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-12 opacity-5 scale-150 rotate-12">
                    <Building2 className="w-48 h-48" />
                 </div>
@@ -394,7 +468,7 @@ export default function App() {
                       <h3 className="text-[#FF8C00] font-black text-xs uppercase tracking-[0.3em] mb-4">Proje Teknik Özeti</h3>
                       <div className="flex items-baseline gap-3">
                          <div className="text-6xl font-black tracking-tighter">{ozet.toplamNetM2.toLocaleString()}</div>
-                         <div className="text-xl font-bold text-blue-300/80 uppercase">Toplam Net Satılabilir m²</div>
+                         <div className="text-xl font-bold text-blue-300/80 uppercase">Toplam Net inşaat m²</div>
                       </div>
                     </div>
                     
@@ -405,7 +479,7 @@ export default function App() {
                         </div>
                         <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
                             <div className="text-[10px] text-blue-300 font-bold uppercase tracking-wider mb-1">Verimlilik</div>
-                            <div className="text-xl font-black">%76.9</div>
+                            <div className="text-xl font-black">%{((ozet.toplamNetM2 / ozet.kullanilanM2) * 100).toFixed(1)}</div>
                         </div>
                     </div>
                   </div>
@@ -430,15 +504,15 @@ export default function App() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </section>
             )}
 
-          </div>
+          </main>
         </div>
 
         <footer className="text-center py-12 border-t border-slate-200 mt-16">
           <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.5em] hover:text-[#1D63CB] transition-colors cursor-default">
-            Emlaknomi Gayrimenkul Teknolojileri • 2024
+            Özcan AKTAŞ Gayrimenkul Teknolojileri • 2026
           </p>
         </footer>
 
