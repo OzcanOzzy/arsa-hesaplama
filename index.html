@@ -19,27 +19,41 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
-        /* Yazdırırken (Rapor Alırken) arkaplan renklerinin korunması için */
         @media print {
-            body {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-            /* Gerekirse yazdırılırken marginleri sıfırlama */
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             @page { margin: 1cm; }
         }
+        .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .blueprint-bg {
+            background-color: #0f172a;
+            background-image: linear-gradient(#1e293b 1px, transparent 1px), linear-gradient(90deg, #1e293b 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        
+        .stairs-pattern {
+            background-image: repeating-linear-gradient(0deg, transparent, transparent 4px, #cbd5e1 4px, #cbd5e1 6px);
+        }
+
+        .vertical-text {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            transform: rotate(180deg);
+        }
+        
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="bg-[#F8FAFC]">
     
-    <!-- React uygulamasının çalışacağı ana kapsayıcı -->
     <div id="root"></div>
 
-    <!-- React ve Uygulama Kodları -->
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // --- İKON BİLEŞENLERİ (Bağımlılık olmaması için SVG olarak eklendi) ---
+        // --- İKON BİLEŞENLER ---
         const Icon = ({ children, className }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
                 {children}
@@ -60,45 +74,28 @@
         const PieChart = ({className}) => <Icon className={className}><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></Icon>;
         const MapIcon = ({className}) => <Icon className={className}><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></Icon>;
         const CheckCircle = ({className}) => <Icon className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></Icon>;
+        const Settings2 = ({className}) => <Icon className={className}><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></Icon>;
+        const Info = ({className}) => <Icon className={className}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></Icon>;
+        const PenTool = ({className}) => <Icon className={className}><path d="m12 19 7-7 3 3-7 7-3-3z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="m2 2 7.586 7.586"/><circle cx="11" cy="11" r="2"/></Icon>;
+        const X = ({className}) => <Icon className={className}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></Icon>;
+        const Layout = ({className}) => <Icon className={className}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="9" x2="9" y1="21" y2="9"/></Icon>;
 
         // --- UYGULAMA MANTIK KODLARI ---
-        const calcBrut = (net) => Math.round(net * 1.30);
+        const calcBrut = (net, multiplier = 1.30) => Math.round(net * multiplier);
 
         const DAİRE_STANDARTLARI = {
-            '1+1': {
-                Kucuk: { net: 35, brut: calcBrut(35) },
-                Orta: { net: 45, brut: calcBrut(45) },
-                Buyuk: { net: 55, brut: calcBrut(55) }
-            },
-            '2+1': {
-                Kucuk: { net: 70, brut: calcBrut(70) },
-                Orta: { net: 80, brut: calcBrut(80) },
-                Buyuk: { net: 100, brut: calcBrut(100) }
-            },
-            '3+1': {
-                Kucuk: { net: 95, brut: calcBrut(95) },
-                Orta: { net: 120, brut: calcBrut(120) },
-                Buyuk: { net: 140, brut: calcBrut(140) }
-            },
-            '4+1': {
-                Kucuk: { net: 130, brut: calcBrut(130) },
-                Orta: { net: 160, brut: calcBrut(160) },
-                Buyuk: { net: 180, brut: calcBrut(180) }
-            }
+            '1+1': { Kucuk: { net: 35, brut: calcBrut(35) }, Orta: { net: 45, brut: calcBrut(45) }, Buyuk: { net: 55, brut: calcBrut(55) } },
+            '2+1': { Kucuk: { net: 70, brut: calcBrut(70) }, Orta: { net: 80, brut: calcBrut(80) }, Buyuk: { net: 100, brut: calcBrut(100) } },
+            '3+1': { Kucuk: { net: 95, brut: calcBrut(95) }, Orta: { net: 120, brut: calcBrut(120) }, Buyuk: { net: 140, brut: calcBrut(140) } },
+            '4+1': { Kucuk: { net: 130, brut: calcBrut(130) }, Orta: { net: 160, brut: calcBrut(160) }, Buyuk: { net: 180, brut: calcBrut(180) } }
         };
 
         const checkKapasite = (testSepet, ozetBilgileri) => {
             if (!ozetBilgileri.katSayisi || ozetBilgileri.katSayisi <= 0) return true;
-            
             let items = [];
-            Object.values(testSepet).forEach(d => {
-                for(let i=0; i<d.adet; i++) items.push(d.brut);
-            });
-            
+            Object.values(testSepet).forEach(d => { for(let i=0; i<d.adet; i++) items.push(d.brut); });
             if (items.length === 0) return true;
-
             items.sort((a, b) => b - a);
-            
             let floors = [];
             if (ozetBilgileri.zeminBrutKapasite > 0) floors.push(ozetBilgileri.zeminBrutKapasite);
             for (let i = 0; i < ozetBilgileri.normalKatAdeti; i++) floors.push(ozetBilgileri.normalKatBrutKapasite);
@@ -108,9 +105,7 @@
                 let placed = false;
                 for (let i = 0; i < floors.length; i++) {
                     if (floors[i] + 0.01 >= brut) {
-                        floors[i] -= brut;
-                        placed = true;
-                        break;
+                        floors[i] -= brut; placed = true; break;
                     }
                 }
                 if (!placed) return false; 
@@ -118,74 +113,484 @@
             return true;
         };
 
-        // Zemin ve Üst Kat Dağılımlarına Göre Gelişmiş Kombinasyon Algoritması
-        const getScenarios = (oda, oz) => {
+        const getElasticScenarios = (oda, oz) => {
             if (!oz.katSayisi || oz.katSayisi <= 0) return [];
+            const results = [];
+            const types = ['Buyuk', 'Orta', 'Kucuk'];
+            const typeLabels = { 'Buyuk': 'Büyük', 'Orta': 'Orta', 'Kucuk': 'Küçük' };
 
-            const B = DAİRE_STANDARTLARI[oda].Buyuk;
-            const O = DAİRE_STANDARTLARI[oda].Orta;
-            const K = DAİRE_STANDARTLARI[oda].Kucuk;
-
-            const runStrat = (cap, type) => {
-                let res = { B: 0, O: 0, K: 0, rem: cap };
-                if (cap <= 0) return res;
-                if (type === 'B') {
-                    res.B = Math.floor(res.rem / B.brut); res.rem -= res.B * B.brut;
-                    res.O = Math.floor(res.rem / O.brut); res.rem -= res.O * O.brut;
-                    res.K = Math.floor(res.rem / K.brut); res.rem -= res.K * K.brut;
-                } else if (type === 'O') {
-                    res.O = Math.floor(res.rem / O.brut); res.rem -= res.O * O.brut;
-                    res.K = Math.floor(res.rem / K.brut); res.rem -= res.K * K.brut;
-                } else {
-                    res.K = Math.floor(res.rem / K.brut); res.rem -= res.K * K.brut;
-                }
-                return res;
+            const calcElasticFit = (cap, stdBrut) => {
+                if (cap <= 0) return { count: 0, actualBrut: 0, waste: 0 };
+                const maxBrut = stdBrut * 1.10; 
+                const minBrut = stdBrut * 0.90; 
+                const maxCount = Math.floor(cap / minBrut);
+                if (maxCount === 0) return { count: 0, actualBrut: 0, waste: cap };
+                const idealBrut = cap / maxCount;
+                if (idealBrut <= maxBrut) return { count: maxCount, actualBrut: idealBrut, waste: 0 };
+                else return { count: maxCount, actualBrut: maxBrut, waste: cap - (maxCount * maxBrut) };
             };
 
-            const strats = ['B', 'O', 'K'];
-            const results = [];
-            const seenLabels = new Set();
-
-            strats.forEach(s => {
-                const zeminRes = runStrat(oz.zeminBrutKapasite, s);
-                const normalRes = runStrat(oz.normalKatBrutKapasite, s);
-                const bucukRes = oz.hasBucukKat ? runStrat(oz.bucukKatBrutKapasite, s) : {B:0, O:0, K:0, rem:0};
-
-                const totalB = zeminRes.B + (normalRes.B * oz.normalKatAdeti) + bucukRes.B;
-                const totalO = zeminRes.O + (normalRes.O * oz.normalKatAdeti) + bucukRes.O;
-                const totalK = zeminRes.K + (normalRes.K * oz.normalKatAdeti) + bucukRes.K;
-                const totalAdet = totalB + totalO + totalK;
-
-                if (totalAdet === 0) return;
-
-                const remZeminNet = Math.floor(zeminRes.rem / 1.30);
-                const remNormalNet = Math.floor(normalRes.rem / 1.30);
-                const remBucukNet = Math.floor(bucukRes.rem / 1.30);
-
-                let parts = [];
-                if (totalB > 0) parts.push({ count: totalB, name: 'Büyük', net: B.net, brut: B.brut });
-                if (totalO > 0) parts.push({ count: totalO, name: 'Orta', net: O.net, brut: O.brut });
-                if (totalK > 0) parts.push({ count: totalK, name: 'Küçük', net: K.net, brut: K.brut });
-
-                const labelStr = parts.map(p => `${p.count} ${p.name}`).join(' + ');
-
-                if (!seenLabels.has(labelStr)) {
-                    seenLabels.add(labelStr);
+            types.forEach(t => {
+                const stdBrut = DAİRE_STANDARTLARI[oda][t].brut;
+                const zeminRes = calcElasticFit(oz.zeminBrutKapasite, stdBrut);
+                const normalRes = calcElasticFit(oz.normalKatBrutKapasite, stdBrut);
+                const bucukRes = oz.hasBucukKat ? calcElasticFit(oz.bucukKatBrutKapasite, stdBrut) : { count: 0, actualBrut: 0, waste: 0 };
+                const totalAdet = zeminRes.count + (normalRes.count * oz.normalKatAdeti) + bucukRes.count;
+                
+                if (totalAdet > 0) {
+                    const normalNet = normalRes.count > 0 ? (normalRes.actualBrut / oz.brutMultiplier) : 0;
+                    const changePercent = normalRes.count > 0 ? ((normalRes.actualBrut - stdBrut) / stdBrut) * 100 : 0;
                     results.push({
-                        type: s === 'B' ? 'Büyük Ağırlıklı' : s === 'O' ? 'Orta Ağırlıklı' : 'Sadece Küçük',
-                        label: labelStr,
-                        parts: parts,
-                        remZeminNet,
-                        remNormalNet,
-                        remBucukNet,
-                        hasBucuk: oz.hasBucukKat,
-                        hasNormal: oz.normalKatAdeti > 0,
-                        hasZemin: oz.zeminBrutKapasite > 0
+                        type: `${typeLabels[t]} Tek Tip (Esnek)`, odaTipi: oda, totalAdet: totalAdet,
+                        normalCount: normalRes.count, normalNet: normalNet, normalBrut: normalRes.actualBrut,
+                        changePercent: changePercent, hasNormal: oz.normalKatAdeti > 0
                     });
                 }
             });
-
             return results;
+        };
+
+        // --- ARSA SİMÜLASYONU (GÖRSEL ALAN) ---
+        const PlotSimulation = ({ edges, setbacks, arsaAlani }) => {
+            const validEdges = edges.filter(e => parseFloat(e.length) > 0).map(e => ({...e, val: parseFloat(e.length)}));
+            if (validEdges.length < 3) {
+                return (
+                    <div className="w-full mt-4 p-6 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 flex items-center justify-center text-center">
+                        <p className="text-xs font-bold text-slate-400">Çizim için en az 3 geçerli kenar uzunluğu girin.</p>
+                    </div>
+                );
+            }
+
+            const totalLength = validEdges.reduce((sum, e) => sum + e.val, 0);
+            const maxEdge = Math.max(...validEdges.map(e => e.val));
+
+            if (maxEdge >= totalLength - maxEdge) {
+                return (
+                    <div className="w-full mt-4 p-4 border border-red-200 bg-red-50 rounded-2xl flex items-center gap-3">
+                        <AlertTriangle className="w-6 h-6 text-red-500 shrink-0" />
+                        <p className="text-xs font-bold text-red-800">Girilen kenar ölçüleri kapalı bir arsa şekli oluşturamaz.</p>
+                    </div>
+                );
+            }
+
+            const size = 300;
+            const center = size / 2;
+            const radius = 100; 
+            
+            const arsa = parseFloat(arsaAlani) || (Math.pow(totalLength / (2 * Math.PI), 2) * Math.PI);
+            const pxPerMeter = radius / Math.sqrt(arsa / Math.PI);
+
+            const N = validEdges.length;
+            const outerPoints = [];
+            
+            let currentAngle = 0;
+            validEdges.forEach((edge) => {
+                const angleSpan = (edge.val / totalLength) * 2 * Math.PI;
+                outerPoints.push({ x: center + radius * Math.cos(currentAngle), y: center + radius * Math.sin(currentAngle) });
+                currentAngle += angleSpan;
+            });
+
+            const offsetLines = [];
+            for (let i = 0; i < N; i++) {
+                const p1 = outerPoints[i], p2 = outerPoints[(i + 1) % N];
+                const dx = p2.x - p1.x, dy = p2.y - p1.y;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                const nx = -dy / len, ny = dx / len;
+                const edgeData = validEdges[i];
+                const sMeters = edgeData.isRoad ? parseFloat(setbacks.front || 0) : parseFloat(setbacks.side || 0);
+                const sPx = sMeters * pxPerMeter;
+                offsetLines.push({
+                    p1: { x: p1.x + nx * sPx, y: p1.y + ny * sPx }, p2: { x: p2.x + nx * sPx, y: p2.y + ny * sPx }, dx, dy
+                });
+            }
+
+            const innerPoints = [];
+            for (let i = 0; i < N; i++) {
+                const line1 = offsetLines[(i - 1 + N) % N], line2 = offsetLines[i];
+                const x1 = line1.p1.x, y1 = line1.p1.y, x2 = line1.p2.x, y2 = line1.p2.y;
+                const x3 = line2.p1.x, y3 = line2.p1.y, x4 = line2.p2.x, y4 = line2.p2.y;
+                const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+                if (Math.abs(denom) < 0.001) innerPoints.push(line2.p1); 
+                else {
+                    const ix = ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) / denom;
+                    const iy = ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) / denom;
+                    innerPoints.push({ x: ix, y: iy });
+                }
+            }
+
+            let innerAreaPx = 0;
+            if (innerPoints.length >= 3) {
+                for (let i = 0; i < innerPoints.length; i++) {
+                    const p1 = innerPoints[i], p2 = innerPoints[(i + 1) % innerPoints.length];
+                    innerAreaPx += (p1.x * p2.y - p2.x * p1.y);
+                }
+                innerAreaPx = Math.abs(innerAreaPx) / 2;
+            }
+            const innerAreaMeters = Math.max(0, innerAreaPx / (pxPerMeter * pxPerMeter));
+
+            const renderEdges = [];
+            for (let i = 0; i < N; i++) {
+                const nextI = (i + 1) % N, prevI = (i - 1 + N) % N, edge = validEdges[i];
+                const outP1 = outerPoints[i], outP2 = outerPoints[nextI];
+                const midAngle = Math.atan2((outP1.y + outP2.y)/2 - center, (outP1.x + outP2.x)/2 - center);
+                const labelDist = radius + 15; 
+                const iconDist = radius + 35;
+
+                const sPrevMeters = parseFloat(validEdges[prevI].isRoad ? setbacks.front : setbacks.side) || 0;
+                const sNextMeters = parseFloat(validEdges[nextI].isRoad ? setbacks.front : setbacks.side) || 0;
+                const inValMeters = Math.max(0, edge.val - sPrevMeters - sNextMeters);
+                const displayInVal = Number.isInteger(inValMeters) ? inValMeters : inValMeters.toFixed(1);
+
+                const inP1 = innerPoints[i], inP2 = innerPoints[nextI];
+                const inMidX = (inP1.x + inP2.x) / 2, inMidY = (inP1.y + inP2.y) / 2;
+                const pushIn = 12; 
+                const inAngle = Math.atan2(inMidY - center, inMidX - center);
+                
+                renderEdges.push({
+                    ...edge,
+                    outStartX: outP1.x, outStartY: outP1.y, outEndX: outP2.x, outEndY: outP2.y,
+                    outLabelX: center + labelDist * Math.cos(midAngle), outLabelY: center + labelDist * Math.sin(midAngle),
+                    iconX: center + iconDist * Math.cos(midAngle), iconY: center + iconDist * Math.sin(midAngle),
+                    inLabelX: inMidX - pushIn * Math.cos(inAngle), inLabelY: inMidY - pushIn * Math.sin(inAngle),
+                    displayInVal
+                });
+            }
+
+            return (
+                <div className="w-full mt-4 relative bg-[#0f172a] rounded-2xl overflow-hidden border border-slate-800 shadow-inner flex flex-col items-center py-6 blueprint-bg">
+                    <h4 className="absolute top-4 left-4 text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2 z-10">
+                        <MapIcon className="w-3 h-3" /> Arsa & İnşaat Sınırı
+                    </h4>
+                    <svg width={size} height={size} className="overflow-visible z-10 drop-shadow-2xl">
+                        <polygon points={outerPoints.map(p=>`${p.x},${p.y}`).join(' ')} fill="rgba(30, 41, 59, 0.9)" stroke="#334155" strokeWidth="2" />
+                        <polygon points={innerPoints.map(p=>`${p.x},${p.y}`).join(' ')} fill="rgba(59, 130, 246, 0.2)" stroke="#60a5fa" strokeWidth="2" strokeDasharray="5,5" />
+                        {renderEdges.map((ed, i) => (
+                            <g key={i}>
+                                {ed.isRoad && <line x1={ed.outStartX} y1={ed.outStartY} x2={ed.outEndX} y2={ed.outEndY} stroke="#FF8C00" strokeWidth="5" strokeLinecap="round" />}
+                                <line x1={ed.outStartX} y1={ed.outStartY} x2={ed.outEndX} y2={ed.outEndY} stroke={ed.isRoad ? "#fff" : "#94a3b8"} strokeWidth={ed.isRoad ? "1" : "2"} />
+                                <text x={ed.outLabelX} y={ed.outLabelY} fill={ed.isRoad ? "#FF8C00" : "#cbd5e1"} fontSize="11" fontWeight="bold" textAnchor="middle" dominantBaseline="middle">{ed.val}m</text>
+                                {ed.displayInVal > 0 && <text x={ed.inLabelX} y={ed.inLabelY} fill="#93c5fd" fontSize="10" fontWeight="black" textAnchor="middle" dominantBaseline="middle" paintOrder="stroke" stroke="#0f172a" strokeWidth="3">{ed.displayInVal}m</text>}
+                                {ed.isRoad && <text x={ed.iconX} y={ed.iconY} fill="#FF8C00" fontSize="9" fontWeight="black" textAnchor="middle" dominantBaseline="middle">YOL</text>}
+                            </g>
+                        ))}
+                        {innerAreaMeters > 0 && (
+                            <g className="animate-fade-in">
+                                <text x={center} y={center - 5} fill="#fbbf24" fontSize="16" fontWeight="black" textAnchor="middle" dominantBaseline="middle" paintOrder="stroke" stroke="#0f172a" strokeWidth="4">
+                                    {innerAreaMeters.toFixed(1)} m²
+                                </text>
+                                <text x={center} y={center + 12} fill="#cbd5e1" fontSize="8" fontWeight="bold" textAnchor="middle" dominantBaseline="middle" className="uppercase tracking-widest" paintOrder="stroke" stroke="#0f172a" strokeWidth="3">
+                                    NET OTURUM
+                                </text>
+                            </g>
+                        )}
+                    </svg>
+                </div>
+            );
+        };
+
+        // --- TAM MATEMATİKSEL ODA YERLEŞİM (CAD) MOTORU ---
+        
+        // Ana Layout Grid Taşıyıcısı: Flex oranlarına göre W ve H'yi matematikle kusursuz parçalar.
+        const LayoutBox = ({ dir = 'row', flex = 1, realW = 0, realH = 0, reverse = false, children }) => {
+            const kids = React.Children.toArray(children).filter(Boolean);
+            const totalFlex = kids.reduce((sum, child) => sum + (child.props.flex || 1), 0);
+            
+            // Eğer reverse true ise CSS flex-direction row-reverse / column-reverse olur.
+            // Bu sayede dış cephe (manzara) dairenin neresindeyse oraya hizalanır.
+            const flexDirection = `${dir}${reverse ? '-reverse' : ''}`;
+
+            return (
+                <div style={{ flex, display: 'flex', flexDirection }} className="w-full h-full">
+                    {kids.map((child, idx) => {
+                        const childFlex = child.props.flex || 1;
+                        const fraction = childFlex / totalFlex;
+                        // Matematiksel kesin alan boyutları
+                        const childW = dir === 'row' ? realW * fraction : realW;
+                        const childH = dir === 'column' ? realH * fraction : realH;
+                        
+                        return React.cloneElement(child, {
+                            realW: childW,
+                            realH: childH,
+                            key: idx
+                        });
+                    })}
+                </div>
+            );
+        };
+
+        // Çizilen Kutucuk: Flexbox Grid'den aldığı kusursuz W ve H değerlerini alana çevirip ekrana yazar.
+        const Room = ({ flex, realW = 0, realH = 0, name, bg, isEntrance, doorSide, isBalcony, isCorridor }) => {
+            const area = realW * realH;
+            
+            let borderClass = "border border-slate-400";
+            if (isBalcony) borderClass = "border-[3px] border-dashed border-emerald-400 z-10";
+            if (isCorridor) borderClass = "border border-slate-300"; 
+            
+            if (isEntrance) {
+                if (doorSide === 'right') borderClass += " border-r-[8px] border-r-[#ea580c] z-20";
+                else if (doorSide === 'left') borderClass += " border-l-[8px] border-l-[#ea580c] z-20";
+            }
+
+            return (
+                <div style={{ flex }} className={`flex flex-col items-center justify-center relative overflow-hidden ${bg} ${borderClass}`}>
+                    {isEntrance && (
+                        <div className={`absolute bg-[#ea580c] text-white text-[7px] md:text-[9px] font-black px-1.5 py-2 flex items-center justify-center tracking-widest ${doorSide === 'right' ? 'right-0 top-1/2 -translate-y-1/2 rounded-l' : 'left-0 top-1/2 -translate-y-1/2 rounded-r'}`}>
+                            <span className={doorSide === 'right' ? 'vertical-text' : 'vertical-text rotate-180'}>KAPI</span>
+                        </div>
+                    )}
+                    <span className={`text-[9px] sm:text-[11px] font-black text-center px-1 leading-tight z-10 drop-shadow-sm ${isBalcony ? 'text-emerald-800' : 'text-slate-800'}`}>
+                        {name}
+                    </span>
+                    <span className="text-[10px] sm:text-xs font-black text-slate-700 z-10 mt-1">{area.toFixed(1)}m²</span>
+                    <span className="text-[8px] sm:text-[9px] text-slate-600 z-10 font-bold whitespace-nowrap bg-white/50 px-1 rounded mt-0.5">
+                        {realW.toFixed(2)}m x {realH.toFixed(2)}m
+                    </span>
+                </div>
+            );
+        };
+
+        const DairePlan = ({ odaTipi, netArea, kitchenType, side, totalW, totalH }) => {
+            const doorSide = side === 'left' ? 'right' : 'left';
+            const reverse = side === 'right'; // Sağ dairenin dış cephesini sağa almak için LayoutBox reverse edilir
+
+            if (odaTipi === '1+1') {
+                if (kitchenType === 'açık') {
+                    return (
+                        <LayoutBox dir="row" flex={1} realW={totalW} realH={totalH} reverse={reverse}>
+                            <LayoutBox dir="column" flex={6.5}>
+                                <LayoutBox dir="row" flex={6} reverse={reverse}>
+                                    <Room flex={3} name="Balkon" bg="bg-emerald-50/80" isBalcony />
+                                    <Room flex={7} name="Salon + Açık Mutfak" bg="bg-amber-100" />
+                                </LayoutBox>
+                                <Room flex={4} name="Yatak Odası" bg="bg-blue-100" />
+                            </LayoutBox>
+                            <LayoutBox dir="column" flex={3.5}>
+                                <Room flex={6} name="Banyo" bg="bg-teal-100" />
+                                <Room flex={4} name="Antre" bg="bg-slate-200" isEntrance doorSide={doorSide} />
+                            </LayoutBox>
+                        </LayoutBox>
+                    );
+                } else {
+                    return (
+                        <LayoutBox dir="row" flex={1} realW={totalW} realH={totalH} reverse={reverse}>
+                            <LayoutBox dir="column" flex={6.5}>
+                                <LayoutBox dir="row" flex={5.5} reverse={reverse}>
+                                    <Room flex={2.5} name="Balkon" bg="bg-emerald-50/80" isBalcony />
+                                    <Room flex={7.5} name="Salon" bg="bg-amber-100" />
+                                </LayoutBox>
+                                <Room flex={4.5} name="Yatak Odası" bg="bg-blue-100" />
+                            </LayoutBox>
+                            <LayoutBox dir="column" flex={3.5}>
+                                <Room flex={3.5} name="Banyo" bg="bg-teal-100" />
+                                <Room flex={3.5} name="Ayrı Mutfak" bg="bg-orange-100" />
+                                <Room flex={3.0} name="Antre" bg="bg-slate-200" isEntrance doorSide={doorSide} />
+                            </LayoutBox>
+                        </LayoutBox>
+                    );
+                }
+            }
+            if (odaTipi === '2+1') return (
+                <LayoutBox dir="column" flex={1} realW={totalW} realH={totalH}>
+                    <LayoutBox dir="row" flex={4.5} reverse={reverse}>
+                        <LayoutBox dir="row" flex={7} reverse={reverse}>
+                            <Room flex={2.5} name="Balkon" bg="bg-emerald-50/80" isBalcony />
+                            <Room flex={7.5} name="Salon" bg="bg-amber-100" />
+                        </LayoutBox>
+                        <Room flex={3} name="Mutfak" bg="bg-orange-50" />
+                    </LayoutBox>
+                    <LayoutBox dir="row" flex={1.5} reverse={reverse}>
+                        <Room flex={7} name="Gece Holü (Koridor)" bg="bg-slate-100/50" isCorridor />
+                        <Room flex={3} name="Giriş Antre" bg="bg-slate-200" isEntrance doorSide={doorSide} />
+                    </LayoutBox>
+                    <LayoutBox dir="row" flex={4} reverse={reverse}>
+                        <LayoutBox dir="row" flex={7} reverse={reverse}>
+                            <Room flex={4.5} name="Yatak Odası" bg="bg-blue-50" />
+                            <Room flex={5.5} name="Ebeveyn Y.O." bg="bg-blue-100" />
+                        </LayoutBox>
+                        <Room flex={3} name="Banyo" bg="bg-teal-50" />
+                    </LayoutBox>
+                </LayoutBox>
+            );
+            if (odaTipi === '3+1') return (
+                <LayoutBox dir="column" flex={1} realW={totalW} realH={totalH}>
+                    <LayoutBox dir="row" flex={4.5} reverse={reverse}>
+                        <LayoutBox dir="row" flex={7} reverse={reverse}>
+                            <Room flex={2} name="Balkon" bg="bg-emerald-50/80" isBalcony />
+                            <Room flex={8} name="Salon" bg="bg-amber-100" />
+                        </LayoutBox>
+                        <Room flex={3} name="Mutfak" bg="bg-orange-50" />
+                    </LayoutBox>
+                    <LayoutBox dir="row" flex={1.5} reverse={reverse}>
+                        <Room flex={7} name="Uzun Koridor" bg="bg-slate-100/50" isCorridor />
+                        <Room flex={3} name="Giriş Antre" bg="bg-slate-200" isEntrance doorSide={doorSide} />
+                    </LayoutBox>
+                    <LayoutBox dir="row" flex={4} reverse={reverse}>
+                        <LayoutBox dir="row" flex={7} reverse={reverse}>
+                            <Room flex={4} name="Ebeveyn Y.O." bg="bg-blue-100" />
+                            <Room flex={3} name="Oda 1" bg="bg-blue-50" />
+                            <Room flex={3} name="Oda 2" bg="bg-blue-50" />
+                        </LayoutBox>
+                        <LayoutBox dir="column" flex={3}>
+                            <Room flex={6} name="Genel Banyo" bg="bg-teal-50" />
+                            <Room flex={4} name="Eb. Banyo" bg="bg-teal-100" />
+                        </LayoutBox>
+                    </LayoutBox>
+                </LayoutBox>
+            );
+            if (odaTipi === '4+1') return (
+                <LayoutBox dir="column" flex={1} realW={totalW} realH={totalH}>
+                    <LayoutBox dir="row" flex={4} reverse={reverse}>
+                        <LayoutBox dir="row" flex={7.5} reverse={reverse}>
+                            <Room flex={2} name="Ana Balkon" bg="bg-emerald-50/80" isBalcony />
+                            <Room flex={8} name="Salon" bg="bg-amber-100" />
+                        </LayoutBox>
+                        <Room flex={2.5} name="Mutfak" bg="bg-orange-50" />
+                    </LayoutBox>
+                    <LayoutBox dir="row" flex={1.5} reverse={reverse}>
+                        <Room flex={7.5} name="Geniş Koridor" bg="bg-slate-100/50" isCorridor />
+                        <Room flex={2.5} name="Giriş Antre" bg="bg-slate-200" isEntrance doorSide={doorSide} />
+                    </LayoutBox>
+                    <LayoutBox dir="row" flex={4.5} reverse={reverse}>
+                        <LayoutBox dir="row" flex={7.5} reverse={reverse}>
+                            <LayoutBox dir="column" flex={3.5}>
+                                <Room flex={7} name="Ebeveyn Y.O." bg="bg-blue-100" />
+                                <LayoutBox dir="row" flex={3} reverse={reverse}>
+                                    <Room flex={1} name="Giyinme" bg="bg-indigo-50" />
+                                    <Room flex={1} name="Eb. Banyo" bg="bg-teal-100" />
+                                </LayoutBox>
+                            </LayoutBox>
+                            <Room flex={2} name="Oda 1" bg="bg-blue-50" />
+                            <Room flex={2} name="Oda 2" bg="bg-blue-50" />
+                            <Room flex={2} name="Oda 3" bg="bg-blue-50" />
+                        </LayoutBox>
+                        <LayoutBox dir="column" flex={2.5}>
+                            <Room flex={5} name="Genel Banyo" bg="bg-teal-50" />
+                            <Room flex={3} name="WC" bg="bg-teal-100" />
+                            <Room flex={2} name="Çamaşır" bg="bg-indigo-50" />
+                        </LayoutBox>
+                    </LayoutBox>
+                </LayoutBox>
+            );
+            return null;
+        }
+
+        const FloorPlanModal = ({ scenario, ozet, onClose }) => {
+            if (!scenario) return null;
+            const [kitchenType, setKitchenType] = useState('açık'); 
+
+            const ratio = ozet.aspectRatio || 1;
+            const isNarrow = ratio > 2.5;
+            const area = Math.round(ozet.normalKatBrutKapasite);
+            const coreArea = Math.round(area * (1 - (1 / ozet.brutMultiplier)));
+            const flats = Array.from({ length: scenario.normalCount }).map((_, i) => i + 1);
+            
+            const splitLayout = !isNarrow && flats.length > 1;
+            const leftFlats = splitLayout ? flats.slice(0, Math.ceil(flats.length / 2)) : flats;
+            const rightFlats = splitLayout ? flats.slice(Math.ceil(flats.length / 2)) : [];
+
+            const CoreBlock = () => {
+                const isHorizontal = isNarrow || !splitLayout;
+                return (
+                    <div className={`bg-slate-200 border-[3px] border-slate-500 flex ${isHorizontal ? 'flex-row' : 'flex-col'} shadow-inner shrink-0 relative`} style={{ [isHorizontal ? 'minHeight' : 'minWidth']: '140px', [isHorizontal ? 'width' : 'height']: '100%' }}>
+                        <div className={`flex-1 bg-slate-50 border border-slate-300 flex items-center justify-center relative shadow-inner`}>
+                            <div className={`absolute ${isHorizontal ? 'inset-x-0 h-12' : 'inset-y-0 w-12'} bg-orange-50/40 border-${isHorizontal ? 'y' : 'x'} border-orange-200/50 m-auto`}></div> 
+                            <span className={`text-[10px] md:text-xs font-black tracking-[0.3em] text-slate-400 ${isHorizontal ? '' : '-rotate-90'} whitespace-nowrap z-10`}>MERKEZİ KAT HOLÜ</span>
+                            <span className="text-[10px] font-bold text-slate-500 absolute bottom-2 right-2 z-10 bg-white/90 px-2 py-0.5 rounded shadow-sm">Ortak: ~{coreArea}m²</span>
+                        </div>
+                        <div className={`flex ${isHorizontal ? 'flex-col' : 'flex-row'} bg-slate-300 border border-slate-400 p-1.5 gap-1.5 shadow-sm`} style={{ [isHorizontal ? 'width' : 'height']: '160px' }}>
+                            <div className="flex-1 border border-slate-500 relative overflow-hidden flex items-center justify-center bg-slate-100 shadow-inner">
+                                <div className="absolute inset-0 stairs-pattern opacity-60"></div>
+                                <span className="z-10 bg-white/90 px-1.5 py-0.5 text-[9px] font-black tracking-widest text-slate-800 rounded border border-slate-300 shadow-sm">MERDİVEN</span>
+                            </div>
+                            <div className="flex-1 border border-slate-500 bg-slate-400 relative flex items-center justify-center shadow-inner shrink-0">
+                                <X className="absolute inset-0 w-full h-full text-slate-600 opacity-40 p-1" />
+                                <span className="z-10 bg-slate-300/90 px-1.5 py-0.5 text-[8px] font-black text-slate-900 rounded border border-slate-500">ASANSÖR</span>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const FlatBox = ({ num, side }) => {
+                const isHorizontal = isNarrow || !splitLayout;
+                
+                // Gerçekçi Kat Planı En/Boy oranı (Matematiksel alan W*H = netArea)
+                const aspectRatios = { '1+1': 1.3, '2+1': 1.5, '3+1': 1.6, '4+1': 1.8 };
+                let flatRatio = aspectRatios[scenario.odaTipi];
+                if (!isHorizontal) flatRatio = 1 / flatRatio; // Dikey/Yatay yerleşime göre çevir
+
+                const totalW = Math.sqrt(scenario.normalNet * flatRatio);
+                const totalH = scenario.normalNet / totalW;
+
+                return (
+                    <div className="bg-white border-[4px] border-slate-700 flex flex-col relative overflow-hidden flex-1 shadow-lg group min-h-[300px]">
+                        <div className="bg-slate-800 text-white px-3 py-2 flex justify-between items-center z-20 shadow-sm shrink-0">
+                            <div className="text-xs font-black flex items-center gap-2">
+                                DAİRE {num} <span className="opacity-50 font-medium text-[10px]">| {scenario.odaTipi}</span>
+                            </div>
+                            <div className="text-[10px] font-bold text-blue-300">
+                                Net: {Math.round(scenario.normalNet)}m² <span className="opacity-70 font-medium text-[8px] ml-1">(Brüt: {Math.round(scenario.normalBrut)}m²)</span>
+                            </div>
+                        </div>
+                        <div className="flex-1 relative bg-slate-50/50 block">
+                            <DairePlan odaTipi={scenario.odaTipi} netArea={scenario.normalNet} kitchenType={kitchenType} side={side} totalW={totalW} totalH={totalH} />
+                            
+                            <div className="absolute bottom-1 left-1 bg-slate-800/95 text-white px-2 py-1 text-[9px] font-black z-20 rounded shadow border border-slate-700 backdrop-blur-md">
+                                Daire Dış Ölçü: {totalW.toFixed(2)}m x {totalH.toFixed(2)}m
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 animate-fade-in">
+                    <div className="bg-white rounded-[1.5rem] w-full max-w-6xl shadow-2xl overflow-hidden flex flex-col max-h-[98vh]">
+                        
+                        <div className="p-3 sm:p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0 gap-2 relative">
+                            <div className="flex items-center gap-4 flex-wrap w-full pr-8">
+                                <h3 className="text-base font-black text-slate-800 flex items-center gap-2">
+                                    <PenTool className="w-4 h-4 text-[#1D63CB]" /> Matematiksel Kat Planı (Blueprint)
+                                </h3>
+                                {scenario.odaTipi === '1+1' && (
+                                    <div className="flex items-center bg-slate-200 p-1 rounded-lg">
+                                        <button onClick={() => setKitchenType('açık')} className={`px-3 py-1 text-[10px] font-bold rounded-md transition-colors ${kitchenType === 'açık' ? 'bg-white shadow-sm text-[#1D63CB]' : 'text-slate-500 hover:text-slate-700'}`}>Açık Mutfak</button>
+                                        <button onClick={() => setKitchenType('kapalı')} className={`px-3 py-1 text-[10px] font-bold rounded-md transition-colors ${kitchenType === 'kapalı' ? 'bg-white shadow-sm text-[#1D63CB]' : 'text-slate-500 hover:text-slate-700'}`}>Kapalı Mutfak</button>
+                                    </div>
+                                )}
+                            </div>
+                            <button onClick={onClose} className="p-2 bg-white border border-slate-200 rounded-xl hover:bg-red-50 hover:text-red-500 transition-colors shrink-0 absolute right-3 top-3 sm:relative sm:right-0 sm:top-0">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-auto hide-scrollbar p-2 md:p-6 bg-slate-200/80 blueprint-bg flex items-start md:items-center justify-start md:justify-center">
+                            <div className="w-full min-w-[700px] max-w-5xl bg-slate-100 border-[6px] border-slate-800 shadow-2xl rounded-xl p-2 md:p-3 flex gap-2 md:gap-3 min-h-[450px]" style={{ flexDirection: isNarrow || !splitLayout ? 'column' : 'row' }}>
+                                {leftFlats.length > 0 && <div className={`flex-1 flex ${isNarrow ? 'flex-row' : 'flex-col'} gap-2 md:gap-3`}>{leftFlats.map(num => <FlatBox key={num} num={num} side="left" />)}</div>}
+                                <CoreBlock />
+                                {rightFlats.length > 0 && <div className={`flex-1 flex ${isNarrow ? 'flex-row' : 'flex-col'} gap-2 md:gap-3`}>{rightFlats.map(num => <FlatBox key={num} num={num} side="right" />)}</div>}
+                            </div>
+                        </div>
+
+                        <div className="p-2 sm:p-3 bg-white border-t border-slate-100 flex flex-wrap justify-center sm:justify-between items-center gap-2 sm:gap-4 shrink-0 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] z-10 relative">
+                            <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                                <span className="text-[9px] text-slate-400 font-bold uppercase">Toplam Daire:</span>
+                                <span className="text-sm font-black text-slate-800">{scenario.normalCount}</span>
+                            </div>
+                            <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                                <span className="text-[9px] text-slate-400 font-bold uppercase">Daire Net/Brüt:</span>
+                                <span className="text-sm font-black text-[#1D63CB]">{Math.round(scenario.normalNet)}m² / {Math.round(scenario.normalBrut)}m²</span>
+                            </div>
+                            <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                                <span className="text-[9px] text-slate-400 font-bold uppercase">Esneme:</span>
+                                <span className={`text-sm font-black ${scenario.changePercent > 0 ? 'text-green-500' : scenario.changePercent < 0 ? 'text-orange-500' : 'text-slate-800'}`}>
+                                    {scenario.changePercent > 0 ? '+' : ''}{scenario.changePercent.toFixed(1)}%
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
         };
 
         const EmlaknomiLogo = () => (
@@ -201,272 +606,84 @@
 
         function App() {
             const [params, setParams] = useState({
-                arsaAlani: '',
-                yolaTerkDeger: '',
-                yolaTerkBirim: 'm2',
-                emsal: '',
-                taks: '',
-                katSayisi: '',
-                katBirim: 'kat',
-                nizamTipi: 'Ayrık'
+                arsaAlani: '', yolaTerkDeger: '', yolaTerkBirim: 'm2', emsal: '', taks: '', katSayisi: '', katBirim: 'kat', nizamTipi: 'Ayrık'
             });
+
+            const [advancedMode, setAdvancedMode] = useState(false);
+            const [setbacks, setSetbacks] = useState({ front: 5, side: 3 });
+            const [edges, setEdges] = useState([
+                { id: 1, length: '', isRoad: true }, { id: 2, length: '', isRoad: false }, { id: 3, length: '', isRoad: false }, { id: 4, length: '', isRoad: false }
+            ]);
+            
+            const [appliedGeoData, setAppliedGeoData] = useState(null);
+            const [geoCalcArea, setGeoCalcArea] = useState(0);
 
             const [sepet, setSepet] = useState({});
             const [toastMessage, setToastMessage] = useState("");
+            const [selectedFloorPlan, setSelectedFloorPlan] = useState(null); 
             
             const [ozet, setOzet] = useState({
-                emsalAlani: 0,
-                toplamBrutKapasite: 0,
-                kullanilanM2: 0,
-                dolulukOrani: 0,
-                netArsa: 0,
-                toplamDaire: 0,
-                toplamNetM2: 0,
-                katSayisi: 0,
-                zeminBrutKapasite: 0,
-                normalKatBrutKapasite: 0,
-                bucukKatBrutKapasite: 0,
-                normalKatAdeti: 0,
-                hasBucukKat: false,
-                yerlesimUygun: true
+                emsalAlani: 0, kullanilabilirEmsal: 0, kayipEmsal: 0, toplamBrutKapasite: 0, kullanilanM2: 0, dolulukOrani: 0,
+                netArsa: 0, toplamDaire: 0, toplamNetM2: 0, katSayisi: 0, zeminBrutKapasite: 0, normalKatBrutKapasite: 0,
+                bucukKatBrutKapasite: 0, normalKatAdeti: 0, hasBucukKat: false, geoLimitActive: false, geoInfo: null,
+                aspectRatio: 1, brutMultiplier: 1.30, yerlesimUygun: true
             });
 
             const handleParamChange = (e) => {
                 const { name, value } = e.target;
-                if (name !== 'nizamTipi' && name !== 'yolaTerkBirim' && name !== 'katBirim') {
-                    const numericValue = value === '' ? '' : parseFloat(value);
-                    setParams(prev => ({ ...prev, [name]: numericValue }));
-                } else {
-                    setParams(prev => ({ ...prev, [name]: value }));
-                }
+                if (name !== 'nizamTipi' && name !== 'yolaTerkBirim' && name !== 'katBirim') setParams(prev => ({ ...prev, [name]: value === '' ? '' : parseFloat(value) }));
+                else setParams(prev => ({ ...prev, [name]: value }));
             };
 
             const updateAdet = (odaTipi, boyut, delta) => {
                 const key = `${odaTipi}-${boyut}`;
                 const daireData = DAİRE_STANDARTLARI[odaTipi][boyut];
-
                 setSepet(prev => {
                     const mevcut = prev[key] || { adet: 0, odaTipi, boyut, ...daireData };
                     const yeniAdet = Math.max(0, mevcut.adet + delta);
-                    
                     if (delta > 0) {
                         const testSepet = { ...prev, [key]: { ...mevcut, adet: yeniAdet } };
-                        const sigarMi = checkKapasite(testSepet, ozet);
-                        if (!sigarMi) {
-                            return prev; 
-                        }
+                        if (!checkKapasite(testSepet, ozet)) return prev; 
                     }
-                    
                     return { ...prev, [key]: { ...mevcut, adet: yeniAdet } };
                 });
             };
 
-            // Paylaşılacak ve PDF yapılacak Ortak Metin/İçerik Fonksiyonu
-            const getReportDetails = () => {
-                let manuelDetay = "";
-                let seciliVarMi = false;
-                Object.values(sepet).forEach(d => {
-                    if (d.adet > 0) {
-                        seciliVarMi = true;
-                        manuelDetay += `• ${d.odaTipi} (${d.boyut}): ${d.adet} Adet (Net: ${d.net}m²)\n`;
-                    }
-                });
-
-                let tahminiSenaryoText = "";
-                let tahminiSenaryoHtml = "";
-                let hasTahmini = false;
-                
-                Object.keys(DAİRE_STANDARTLARI).forEach((oda) => {
-                    const scenarios = getScenarios(oda, ozet);
-                    
-                    if (scenarios.length > 0) {
-                        hasTahmini = true;
-                        tahminiSenaryoText += `\n[${oda} İçin Alternatifler]\n`;
-                        tahminiSenaryoHtml += `
-                            <li style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">
-                                <strong style="color:#1d63cb; font-size:15px;">${oda} Tipi Alternatifleri:</strong>
-                                <ul style="list-style-type: none; padding-left: 10px; margin-top: 8px;">
-                        `;
-
-                        scenarios.forEach(r => {
-                            let kalanNotuArrText = [];
-                            if (r.remZeminNet > 0 && r.hasZemin) kalanNotuArrText.push(`Zemin ${r.remZeminNet}m²`);
-                            if (r.remNormalNet > 0 && r.hasNormal) kalanNotuArrText.push(`Normal Kat ${r.remNormalNet}m²`);
-                            if (r.remBucukNet > 0 && r.hasBucuk) kalanNotuArrText.push(`Çatı ${r.remBucukNet}m²`);
-                            
-                            let kalanNotuText = kalanNotuArrText.length > 0 ? ` (Artan Net: ${kalanNotuArrText.join(', ')})` : "";
-                            let kalanNotuHtml = kalanNotuArrText.length > 0 ? ` <div style="color:#64748b; font-size:12px; margin-top:4px;">(Artan Net Boşluklar: ${kalanNotuArrText.join(', ')})</div>` : "";
-                            
-                            let partsText = r.parts.map(p => `${p.count} ${p.name} (N:${p.net}m² / B:${p.brut}m²)`).join(' + ');
-                            let partsHtml = r.parts.map(p => `${p.count} Adet ${p.name} <span style="color:#64748b; font-size:13px; font-weight:normal;">(Net:${p.net}m² / Brüt:${p.brut}m²)</span>`).join('<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ ');
-
-                            tahminiSenaryoText += `  • ${r.type}:\n    -> ${partsText}${kalanNotuText}\n`;
-                            tahminiSenaryoHtml += `<li style="margin-bottom: 12px;"><strong>${r.type}:</strong><br/> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&rarr; ${partsHtml}${kalanNotuHtml}</li>`;
-                        });
-                        
-                        tahminiSenaryoHtml += `</ul></li>`;
-                    }
-                });
-
-                if (!hasTahmini) {
-                    tahminiSenaryoText += "• Bu imar durumuna göre standart daire sığmamaktadır.\n";
-                    tahminiSenaryoHtml += `<li style="padding: 8px 0; color: #ef4444;">Bu imar durumuna göre standart daire sığmamaktadır.</li>`;
+            const handleGeoCalculate = () => {
+                if (!params.arsaAlani || parseFloat(params.arsaAlani) <= 0) {
+                    setToastMessage("Önce Arsa Alanı bilgisini girmelisiniz!"); setTimeout(() => setToastMessage(""), 3500); return;
+                }
+                const validEdges = edges.filter(e => parseFloat(e.length) > 0);
+                if (validEdges.length < 3) {
+                    setToastMessage("Hesaplama için en az 3 kenar girmelisiniz!"); setTimeout(() => setToastMessage(""), 3500); return;
                 }
 
-                const verimlilik = seciliVarMi && ozet.kullanilanM2 ? ((ozet.toplamNetM2 / ozet.kullanilanM2) * 100).toFixed(1) : "0.0";
+                const totalL = validEdges.reduce((sum, e) => sum + parseFloat(e.length), 0);
+                const maxE = Math.max(...validEdges.map(e => parseFloat(e.length)));
+                if (maxE >= totalL - maxE) {
+                    setToastMessage("Hatalı Ölçü! Bu kenarlar birleşerek kapalı bir arsa oluşturamaz."); setTimeout(() => setToastMessage(""), 4500); return;
+                }
                 
-                return { manuelDetay, seciliVarMi, verimlilik, tahminiSenaryoText, tahminiSenaryoHtml };
+                let totalLoss = 0; let sumSetbacks = 0;
+                validEdges.forEach(e => {
+                    const l = parseFloat(e.length) || 0;
+                    const s = e.isRoad ? parseFloat(setbacks.front || 0) : parseFloat(setbacks.side || 0);
+                    totalLoss += (l * s); sumSetbacks += s;
+                });
+                const avgS = sumSetbacks / validEdges.length;
+                let calcArea = parseFloat(params.arsaAlani) - totalLoss + (Math.PI * Math.pow(avgS, 2));
+                calcArea = Math.max(0, Math.min(parseFloat(params.arsaAlani), calcArea));
+                
+                setGeoCalcArea(calcArea);
+                setAppliedGeoData({ edges: validEdges, setbacks: { ...setbacks } });
+                setToastMessage("Sınırlar hesaplandı ve kapasiteye uygulandı!"); setTimeout(() => setToastMessage(""), 3500);
             };
 
-            // Rapor Alma (Doğrudan Temiz PDF İndir)
-            const handlePrint = () => {
-                const { manuelDetay, seciliVarMi, verimlilik, tahminiSenaryoHtml } = getReportDetails();
-                
-                const maxNetAlan = Math.round(ozet.emsalAlani || 0);
-                const netInsaatStr = seciliVarMi 
-                    ? `${ozet.toplamNetM2.toLocaleString()} m²` 
-                    : `${maxNetAlan.toLocaleString()} m² <span style="color:#94a3b8; font-size:12px; font-weight:normal;">(En fazla yapılabilecek net alan)</span>`;
-                
-                const planlananUniteStr = seciliVarMi ? `${ozet.toplamDaire} Adet` : '<span style="color:#94a3b8; font-weight:normal;">Belirlenmedi (Manuel seçim yapılmadı)</span>';
-                const verimStr = seciliVarMi ? `%${verimlilik}` : '<span style="color:#94a3b8; font-weight:normal;">Belirlenmedi</span>';
-                
-                const katBilgisi = params.katBirim === 'metre' ? `Yükseklik: ${params.katSayisi}m (~${ozet.katSayisi} Kat)` : `Kat: ${params.katSayisi || 0}`;
-
-                const kapasiteOzetiHtml = [
-                    `Zemin Kat Brüt: ${Math.round(ozet.zeminBrutKapasite).toLocaleString()} m²`,
-                    ozet.normalKatAdeti > 0 ? `Normal Kat Brüt: ${Math.round(ozet.normalKatBrutKapasite).toLocaleString()} m² (${ozet.normalKatAdeti} Adet)` : null,
-                    ozet.hasBucukKat ? `Çatı Katı Brüt: ${Math.round(ozet.bucukKatBrutKapasite).toLocaleString()} m²` : null
-                ].filter(Boolean).map(text => `<p style="margin:4px 0; color:#475569; font-size:14px;">${text}</p>`).join('');
-
-                const pdfElement = document.createElement('div');
-                let htmlContent = `
-                    <div style="font-family: Arial, sans-serif; padding: 40px; color: #1e293b; line-height: 1.6;">
-                        <h1 style="color: #1d63cb; margin-bottom: 5px; font-size: 24px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px;">🏢 Emlaknomi Arsa Raporu</h1>
-                        
-                        <div style="margin-top: 25px;">
-                            <p><strong>📍 Arsa Alanı:</strong> ${params.arsaAlani || 0} m² (${params.nizamTipi} Nizam)</p>
-                            <p><strong>🏗️ Emsal:</strong> ${params.emsal || 0} &nbsp;|&nbsp; <strong>TAKS:</strong> ${params.taks || 0} &nbsp;|&nbsp; <strong>${katBilgisi}</strong></p>
-                        </div>
-
-                        <div style="margin-top: 25px; padding: 15px; background-color: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-                            <p style="margin-bottom: 10px;"><strong>📏 Toplam Brüt İnşaat:</strong> ${Math.round(ozet.toplamBrutKapasite).toLocaleString()} m²</p>
-                            ${kapasiteOzetiHtml}
-                            <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 15px 0;" />
-                            <p><strong>✅ Toplam Net İnşaat:</strong> ${netInsaatStr}</p>
-                            <p><strong>🏠 Planlanan Ünite:</strong> ${planlananUniteStr}</p>
-                        </div>
-
-                        <h3 style="color: #1d63cb; margin-top: 30px; font-size: 18px;">💡 TAHMİNİ SENARYOLAR</h3>
-                        <p style="font-size: 12px; color: #ef4444; margin-top: -10px; margin-bottom: 10px;">(Not: Seçenekler alternatiflerdir, birbirleriyle toplanmazlar. Zemin, normal ve çatı katı mimari kurallarına uygun hesaplanmıştır.)</p>
-                        <ul style="list-style-type: none; padding-left: 0;">
-                            ${tahminiSenaryoHtml}
-                        </ul>
-                `;
-
-                if (seciliVarMi) {
-                    let manuelHtmlLines = "";
-                    Object.values(sepet).forEach(d => {
-                        if (d.adet > 0) {
-                            manuelHtmlLines += `<li style="padding: 8px 0; border-bottom: 1px dashed #cbd5e1;"><strong>${d.odaTipi} (${d.boyut})</strong> &nbsp;&nbsp;&rarr;&nbsp;&nbsp; ${d.adet} Adet &nbsp;<span style="color: #64748b; font-size: 14px;">(Net: ${d.net}m²)</span></li>`;
-                        }
-                    });
-                    
-                    htmlContent += `
-                        <h3 style="color: #f97316; margin-top: 30px; font-size: 18px;">📌 SEÇTİĞİNİZ ODA SAYISINA GÖRE DAİRE ADETİ</h3>
-                        <ul style="list-style-type: none; padding-left: 0;">
-                            ${manuelHtmlLines}
-                        </ul>
-                    `;
-                }
-
-                htmlContent += `
-                        <p style="margin-top: 30px; font-weight: bold;">Verimlilik Oranı: ${verimStr}</p>
-                        <div style="margin-top: 50px; text-align: center; color: #94a3b8; font-size: 12px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
-                            Emlaknomi ile hesaplanmıştır.
-                        </div>
-                    </div>
-                `;
-
-                pdfElement.innerHTML = htmlContent;
-
-                const opt = {
-                    margin:       0,
-                    filename:     'Emlaknomi_Proje_Raporu.pdf',
-                    image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 2 },
-                    jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
-                };
-
-                setToastMessage("PDF İndiriliyor...");
-                html2pdf().set(opt).from(pdfElement).save().then(() => {
-                    setTimeout(() => setToastMessage(""), 3500);
-                });
-            };
-
-            // Paylaş (WhatsApp/Web Share API ve Pano Kopyalama)
-            const handleShare = async () => {
-                const { manuelDetay, seciliVarMi, verimlilik, tahminiSenaryoText } = getReportDetails();
-
-                const maxNetAlan = Math.round(ozet.emsalAlani || 0);
-                const netInsaatStr = seciliVarMi 
-                    ? `${ozet.toplamNetM2.toLocaleString()} m²` 
-                    : `${maxNetAlan.toLocaleString()} m² (En fazla yapılabilecek net alan)`;
-                
-                const planlananUniteStr = seciliVarMi ? `${ozet.toplamDaire} Adet` : 'Belirlenmedi (Manuel Seçim Yok)';
-                const verimStr = seciliVarMi ? `%${verimlilik}` : 'Belirlenmedi';
-                
-                const katBilgisi = params.katBirim === 'metre' ? `Yükseklik: ${params.katSayisi}m (~${ozet.katSayisi} Kat)` : `Kat: ${params.katSayisi || 0}`;
-
-                const kapasiteOzetiStr = [
-                    `Zemin Kat: ${Math.round(ozet.zeminBrutKapasite)}m²`,
-                    ozet.normalKatAdeti > 0 ? `Normal Kat: ${Math.round(ozet.normalKatBrutKapasite)}m² (${ozet.normalKatAdeti} Adet)` : null,
-                    ozet.hasBucukKat ? `Çatı Katı: ${Math.round(ozet.bucukKatBrutKapasite)}m²` : null
-                ].filter(Boolean).join(' | ');
-
-                let textSummary = `🏢 Emlaknomi Arsa Raporu\n` +
-                                  `----------------------\n` +
-                                  `📍 Arsa Alanı: ${params.arsaAlani || 0} m² (${params.nizamTipi} Nizam)\n` +
-                                  `🏗️ Emsal: ${params.emsal || 0} | TAKS: ${params.taks || 0} | ${katBilgisi}\n` +
-                                  `📏 Toplam Brüt İnşaat: ${Math.round(ozet.toplamBrutKapasite).toLocaleString()} m²\n` +
-                                  `> [Katlara Göre: ${kapasiteOzetiStr}]\n` +
-                                  `✅ Toplam Net İnşaat: ${netInsaatStr}\n` +
-                                  `🏠 Planlanan Ünite: ${planlananUniteStr}\n` +
-                                  `----------------------\n\n`;
-
-                textSummary += `💡 TAHMİNİ SENARYOLAR:\n(Not: Seçenekler alternatiflerdir, toplanmazlar)\n${tahminiSenaryoText}\n----------------------\n`;
-
-                if (seciliVarMi) {
-                    textSummary += `📌 SEÇTİĞİNİZ ODA SAYISINA GÖRE DAİRE ADETİ:\n${manuelDetay}----------------------\n`;
-                }
-
-                textSummary += `Verimlilik Oranı: ${verimStr}\n\nEmlaknomi ile hesaplanmıştır.`;
-
-                if (navigator.share) {
-                    try {
-                        await navigator.share({
-                            title: 'Emlaknomi Arsa Raporu',
-                            text: textSummary,
-                        });
-                        setToastMessage("Paylaşım menüsü açıldı!");
-                        setTimeout(() => setToastMessage(""), 3500);
-                        return; 
-                    } catch (err) {
-                        console.log('Kullanıcı paylaşımı iptal etti veya bir hata oluştu.', err);
-                    }
-                }
-
-                const textArea = document.createElement("textarea");
-                textArea.value = textSummary;
-                document.body.appendChild(textArea);
-                textArea.select();
-                try {
-                    document.execCommand('copy');
-                    setToastMessage("Proje özeti panoya kopyalandı!");
-                    setTimeout(() => setToastMessage(""), 3500);
-                } catch (err) {
-                    console.error('Kopyalama başarısız', err);
-                }
-                document.body.removeChild(textArea);
+            const handleGeoReset = () => {
+                setAppliedGeoData(null); setGeoCalcArea(0);
+                setEdges([{ id: 1, length: '', isRoad: true }, { id: 2, length: '', isRoad: false }, { id: 3, length: '', isRoad: false }, { id: 4, length: '', isRoad: false }]);
+                setSetbacks({ front: 5, side: 3 });
+                setToastMessage("Sınırlar sıfırlandı. Standart hesaba dönüldü."); setTimeout(() => setToastMessage(""), 3500);
             };
 
             useEffect(() => {
@@ -477,17 +694,9 @@
                 let rawKat = parseFloat(params.katSayisi) || 0; 
                 let isMetre = params.katBirim === 'metre';
 
-                // --- AKILLI DEĞER DÜZELTME (PARSING) ---
-                if (taksVal > 1) {
-                    if (taksVal >= 10) taksVal = taksVal / 100; // Örn: 30 -> 0.30
-                    else taksVal = taksVal / 10; // Örn: 3 -> 0.30
-                }
-                if (emsalVal > 10) {
-                    if (emsalVal >= 100) emsalVal = emsalVal / 100; // Örn: 150 -> 1.50
-                    else emsalVal = emsalVal / 10; // Örn: 15 -> 1.5
-                }
+                if (taksVal > 1) taksVal = taksVal >= 10 ? taksVal / 100 : taksVal / 10;
+                if (emsalVal > 10) emsalVal = emsalVal >= 100 ? emsalVal / 100 : emsalVal / 10;
                 
-                // Yükseklik (Metre) -> Kat Dönüşümü
                 let finalKatVal = 1; 
                 if (rawKat > 0) {
                     finalKatVal = isMetre ? Math.round((rawKat / 3) * 2) / 2 : rawKat;
@@ -495,79 +704,98 @@
                 }
 
                 let netArsa = arsaVal;
-                if (params.yolaTerkBirim === '%') {
-                    netArsa = arsaVal * (1 - terkVal / 100);
-                } else {
-                    netArsa = Math.max(0, arsaVal - terkVal);
-                }
+                if (params.yolaTerkBirim === '%') netArsa = arsaVal * (1 - terkVal / 100);
+                else netArsa = Math.max(0, arsaVal - terkVal);
 
                 let emsalAlani = netArsa * emsalVal;
-                let toplamBrutKapasite = emsalAlani * 1.30; 
-                
-                // Zemin Kat Brüt Hesaplaması (TAKS sınırını direkt "Brüt Kapasite" olarak alıyoruz)
-                const maksTabanAlani = netArsa * taksVal; 
+                let maksTaksNet = netArsa * taksVal; 
+                let fizikselZeminNet = maksTaksNet;
+                let geoLimitActive = false;
+                let currentGeoInfo = null;
+                let arsaOrani = 1; 
+                let brutMultiplier = 1.30; 
+
+                if (advancedMode && appliedGeoData && appliedGeoData.edges.length >= 3) {
+                    const totalL = appliedGeoData.edges.reduce((sum, e) => sum + parseFloat(e.length), 0);
+                    const maxE = Math.max(...appliedGeoData.edges.map(e => parseFloat(e.length)));
+                    const estimatedWidth = (totalL / 2) - maxE;
+                    if (estimatedWidth > 0) arsaOrani = maxE / estimatedWidth;
+                    if (arsaOrani > 2.5) brutMultiplier = 1.40; 
+
+                    let totalLoss = 0; let sumSetbacks = 0;
+                    appliedGeoData.edges.forEach(e => {
+                        const l = parseFloat(e.length) || 0;
+                        const s = e.isRoad ? parseFloat(appliedGeoData.setbacks.front || 0) : parseFloat(appliedGeoData.setbacks.side || 0);
+                        totalLoss += (l * s); sumSetbacks += s;
+                    });
+                    const avgS = sumSetbacks / appliedGeoData.edges.length;
+                    let calcArea = netArsa - totalLoss + (Math.PI * Math.pow(avgS, 2));
+                    calcArea = Math.max(0, Math.min(netArsa, calcArea));
+
+                    if (calcArea < maksTaksNet) {
+                        fizikselZeminNet = calcArea; geoLimitActive = true;
+                        currentGeoInfo = { type: 'geo', text: `Çekme payları sonrası arsanızın fiziki oturum alanı (${Math.round(calcArea)} m²) TAKS sınırından (${Math.round(maksTaksNet)} m²) küçük olduğu için bina fiziki olarak daraltıldı!` };
+                    } else {
+                        currentGeoInfo = { type: 'taks', text: `Çekme payları hesaplandı. Kalan fiziksel alan (${Math.round(calcArea)} m²), kanuni TAKS sınırınızdan BÜYÜK. Bu yüzden TAKS kuralları geçerli oldu.` };
+                    }
+                    if (arsaOrani > 2.5) currentGeoInfo.text += ` Ayrıca arsa şekli (İnce Uzun) olduğu için koridor kayıpları hesaba katılarak ortak alan (brüt) payı %30'dan %40'a çıkarıldı.`;
+                } else if (!advancedMode) {
+                    setAppliedGeoData(null); 
+                }
+
                 let zeminKatCarpan = Math.min(1, finalKatVal);
-                
-                // Zemin kat brüt alanı TAKS sınırını geçemez. Ayrıca binanın toplam brüt kapasitesini de aşamaz.
-                let zeminBrutKapasite = Math.min(maksTabanAlani * zeminKatCarpan, toplamBrutKapasite);
-                
-                // Üst Katların Hesabı (Zemin Kattan arta kalan brüt inşaat alanının paylaştırılması)
-                let kalanBrutKapasite = Math.max(0, toplamBrutKapasite - zeminBrutKapasite);
+                let zeminBrutKapasite = Math.min(fizikselZeminNet * zeminKatCarpan, emsalAlani * brutMultiplier);
+                let maxUstKatNet = fizikselZeminNet * 1.20; 
+                let toplamBrutHakkı = emsalAlani * brutMultiplier;
+                let kalanBrutHakkı = Math.max(0, toplamBrutHakkı - zeminBrutKapasite);
                 let ustKatSayisi = Math.max(0, finalKatVal - zeminKatCarpan);
-                
+                let kalanEmsal = Math.max(0, kalanBrutHakkı / brutMultiplier);
+                let istenilenUstKatNet = ustKatSayisi > 0 ? (kalanEmsal / ustKatSayisi) : 0;
+                let gerceklesenUstKatNet = Math.min(istenilenUstKatNet, maxUstKatNet);
+
                 let normalKatAdeti = Math.floor(ustKatSayisi);
                 let bucukKisim = ustKatSayisi - normalKatAdeti;
                 let hasBucukKat = bucukKisim > 0;
-                
-                let ustKatEffectiveCount = normalKatAdeti + bucukKisim;
-                let normalKatBrutKapasite = ustKatEffectiveCount > 0 ? (kalanBrutKapasite / ustKatEffectiveCount) : 0;
-                let bucukKatBrutKapasite = hasBucukKat ? (normalKatBrutKapasite * bucukKisim) : 0;
-                
-                let suanKullanilanBrut = 0;
-                let suanToplamDaire = 0;
-                let suanNetM2 = 0;
+
+                let normalKatBrutKapasite = 0, bucukKatBrutKapasite = 0, gerceklesenToplamBrut = zeminBrutKapasite;
+
+                if (ustKatSayisi > 0) {
+                    let istenilenNormalBrut = kalanBrutHakkı / ustKatSayisi;
+                    normalKatBrutKapasite = Math.min(istenilenNormalBrut, maxUstKatNet * brutMultiplier);
+                    bucukKatBrutKapasite = hasBucukKat ? (normalKatBrutKapasite * bucukKisim) : 0;
+                    gerceklesenToplamBrut += (normalKatBrutKapasite * normalKatAdeti) + bucukKatBrutKapasite;
+                }
+
+                let kullanilabilirEmsal = gerceklesenToplamBrut / brutMultiplier;
+                let kayipEmsal = Math.max(0, emsalAlani - kullanilabilirEmsal);
+                let suanKullanilanBrut = 0, suanNetM2 = 0, suanToplamDaire = 0;
 
                 Object.values(sepet).forEach(d => {
-                    suanKullanilanBrut += (d.adet * d.brut);
-                    suanNetM2 += (d.adet * d.net);
-                    suanToplamDaire += d.adet;
+                    suanKullanilanBrut += (d.adet * d.brut); suanNetM2 += (d.adet * d.net); suanToplamDaire += d.adet;
                 });
                 
                 const newOzet = {
-                    emsalAlani: emsalAlani,
-                    toplamBrutKapasite: toplamBrutKapasite,
-                    kullanilanM2: suanKullanilanBrut,
-                    dolulukOrani: toplamBrutKapasite > 0 ? (suanKullanilanBrut / toplamBrutKapasite) * 100 : 0,
-                    netArsa: netArsa,
-                    toplamDaire: suanToplamDaire,
-                    toplamNetM2: suanNetM2,
-                    katSayisi: rawKat > 0 ? finalKatVal : 0,
-                    zeminBrutKapasite: zeminBrutKapasite,
-                    normalKatBrutKapasite: normalKatBrutKapasite,
-                    bucukKatBrutKapasite: bucukKatBrutKapasite,
-                    normalKatAdeti: normalKatAdeti,
-                    hasBucukKat: hasBucukKat,
-                    yerlesimUygun: true 
+                    emsalAlani, kullanilabilirEmsal, kayipEmsal, toplamBrutKapasite: gerceklesenToplamBrut, kullanilanM2: suanKullanilanBrut,
+                    dolulukOrani: gerceklesenToplamBrut > 0 ? (suanKullanilanBrut / gerceklesenToplamBrut) * 100 : 0, netArsa, toplamDaire: suanToplamDaire,
+                    toplamNetM2: suanNetM2, katSayisi: rawKat > 0 ? finalKatVal : 0, zeminBrutKapasite, normalKatBrutKapasite, bucukKatBrutKapasite,
+                    normalKatAdeti, hasBucukKat, geoLimitActive, geoInfo: currentGeoInfo, aspectRatio: arsaOrani, brutMultiplier, yerlesimUygun: true 
                 };
 
                 newOzet.yerlesimUygun = checkKapasite(sepet, newOzet);
                 setOzet(newOzet);
 
-            }, [params, sepet]);
+            }, [params, sepet, advancedMode, appliedGeoData]);
 
             return (
                 <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900 p-4 md:p-8">
-                    
-                    {/* Toast Mesajı */}
+                    {FloorPlanModal && <FloorPlanModal scenario={selectedFloorPlan} ozet={ozet} onClose={() => setSelectedFloorPlan(null)} />}
                     {toastMessage && (
                         <div className="fixed bottom-6 right-6 bg-[#1D63CB] text-white px-6 py-4 rounded-2xl shadow-2xl z-50 animate-bounce flex items-center gap-3 print:hidden">
-                            <CheckCircle className="w-5 h-5 text-green-300" />
-                            <span className="font-bold text-sm">{toastMessage}</span>
+                            <CheckCircle className="w-5 h-5 text-green-300" /> <span className="font-bold text-sm">{toastMessage}</span>
                         </div>
                     )}
 
                     <div className="max-w-6xl mx-auto space-y-8">
-                        
                         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                             <div className="flex items-center gap-5">
                                 <EmlaknomiLogo />
@@ -578,19 +806,9 @@
                                     </p>
                                 </div>
                             </div>
-                            
-                            <div className="flex gap-2 print:hidden">
-                                <button onClick={handleShare} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all shadow-sm active:scale-95">
-                                    <Share2 className="w-4 h-4" /> Paylaş
-                                </button>
-                                <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-[#1D63CB] text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-all shadow-md active:scale-95">
-                                    <FileText className="w-4 h-4" /> Rapor Al
-                                </button>
-                            </div>
                         </header>
 
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                            
                             <aside className="lg:col-span-4 space-y-6">
                                 <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200">
                                     <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
@@ -607,19 +825,8 @@
                                             <div className="flex mt-1">
                                                 <input placeholder="Örn: 10" type="number" name="yolaTerkDeger" value={params.yolaTerkDeger} onChange={handleParamChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-l-2xl focus:ring-2 focus:ring-[#1D63CB] focus:bg-white outline-none font-bold shadow-sm" />
                                                 <select name="yolaTerkBirim" value={params.yolaTerkBirim} onChange={handleParamChange} className="bg-slate-100 border border-l-0 border-slate-200 rounded-r-2xl px-4 font-bold text-slate-600 outline-none hover:bg-slate-200 transition-colors">
-                                                    <option value="m2">m²</option>
-                                                    <option value="%">%</option>
+                                                    <option value="m2">m²</option><option value="%">%</option>
                                                 </select>
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">İmar Nizamı</label>
-                                            <div className="relative mt-1">
-                                                <select name="nizamTipi" value={params.nizamTipi} onChange={handleParamChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#1D63CB] outline-none font-bold shadow-sm appearance-none">
-                                                    {['Ayrık', 'Bitişik', 'Blok', 'İkiz'].map(n => <option key={n} value={n}>{n} Nizam</option>)}
-                                                </select>
-                                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
                                             </div>
                                         </div>
 
@@ -637,18 +844,79 @@
                                         <div>
                                             <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Kat Sayısı / Yükseklik</label>
                                             <div className="flex mt-1">
-                                                <input placeholder="Örn: 2 veya 2.5" type="number" step="0.5" name="katSayisi" value={params.katSayisi} onChange={handleParamChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-l-2xl focus:ring-2 focus:ring-[#1D63CB] focus:bg-white outline-none font-bold shadow-sm" />
+                                                <input placeholder="Örn: 2 veya 6.5" type="number" step="0.5" name="katSayisi" value={params.katSayisi} onChange={handleParamChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-l-2xl focus:ring-2 focus:ring-[#1D63CB] focus:bg-white outline-none font-bold shadow-sm" />
                                                 <select name="katBirim" value={params.katBirim} onChange={handleParamChange} className="bg-slate-100 border border-l-0 border-slate-200 rounded-r-2xl px-2 text-xs font-bold text-slate-600 outline-none hover:bg-slate-200 transition-colors">
-                                                    <option value="kat">Kat</option>
-                                                    <option value="metre">Metre (H)</option>
+                                                    <option value="kat">Kat</option><option value="metre">Metre (H)</option>
                                                 </select>
                                             </div>
-                                            {params.katBirim === 'metre' && params.katSayisi > 0 && (
-                                                <div className="text-[10px] text-[#1D63CB] font-bold mt-2 ml-1">
-                                                    Hesaplanan: {ozet.katSayisi} Kat <span className="opacity-60">(Çatı payı hesaba katıldı)</span>
-                                                </div>
-                                            )}
                                         </div>
+                                    </div>
+
+                                    <div className="mt-6 border border-slate-200 rounded-2xl overflow-hidden bg-white print:hidden">
+                                        <button onClick={() => setAdvancedMode(!advancedMode)} className={`w-full flex items-center justify-between p-4 transition-colors ${ozet.geoLimitActive ? 'bg-orange-50 hover:bg-orange-100' : 'bg-slate-50 hover:bg-slate-100'}`}>
+                                            <div className="flex items-center gap-2">
+                                                <Settings2 className="w-4 h-4 text-[#1D63CB]" />
+                                                <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest text-left">Geometrik Sınır & Çekmeler</span>
+                                            </div>
+                                            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${advancedMode ? 'rotate-180' : ''}`} />
+                                        </button>
+                                        
+                                        {advancedMode && (
+                                            <div className="p-4 space-y-4 border-t border-slate-200 bg-white animate-fade-in">
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase">Ön/Yol Çekme (m)</label>
+                                                        <input type="number" placeholder="Örn: 5" value={setbacks.front} onChange={e => setSetbacks({...setbacks, front: e.target.value})} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold mt-1 text-sm focus:ring-2 focus:ring-[#1D63CB]" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase">Yan/Arka Çekme (m)</label>
+                                                        <input type="number" placeholder="Örn: 3" value={setbacks.side} onChange={e => setSetbacks({...setbacks, side: e.target.value})} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold mt-1 text-sm focus:ring-2 focus:ring-[#1D63CB]" />
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="space-y-2 pt-2 border-t border-slate-100">
+                                                    <label className="text-[9px] font-black text-slate-400 uppercase flex items-center justify-between">
+                                                        <span>Arsa Kenarları (Sırayla)</span>
+                                                        <span className="text-slate-400 font-medium">Yol cephesi ise işaretleyin</span>
+                                                    </label>
+                                                    {edges.map((edge, idx) => (
+                                                        <div key={edge.id} className="flex items-center gap-2">
+                                                            <input type="number" placeholder={`${idx+1}. Kenar (m)`} value={edge.length} onChange={(e) => {
+                                                                const newEdges = [...edges]; newEdges[idx].length = e.target.value; setEdges(newEdges);
+                                                            }} className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm focus:ring-2 focus:ring-[#1D63CB]" />
+                                                            <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 select-none">
+                                                                <input type="checkbox" checked={edge.isRoad} onChange={(e) => {
+                                                                    const newEdges = [...edges]; newEdges[idx].isRoad = e.target.checked; setEdges(newEdges);
+                                                                }} className="w-4 h-4 rounded text-[#1D63CB] focus:ring-[#1D63CB]" />
+                                                                <span className="text-[10px] font-bold text-slate-600">Yol</span>
+                                                            </label>
+                                                            <button onClick={() => setEdges(edges.filter(e => e.id !== edge.id))} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors">
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                    <button onClick={() => setEdges([...edges, {id: Date.now(), length: '', isRoad: false}])} className="w-full py-2.5 border-2 border-dashed border-slate-200 rounded-xl text-[10px] font-black text-[#1D63CB] uppercase tracking-widest hover:bg-blue-50 transition-colors flex items-center justify-center gap-2 mt-2">
+                                                        <Plus className="w-3 h-3" /> Yeni Kenar Ekle
+                                                    </button>
+                                                </div>
+
+                                                <PlotSimulation edges={edges} setbacks={setbacks} arsaAlani={params.arsaAlani} hesaplananGeoAlan={geoCalcArea} />
+
+                                                <div className="flex gap-2 mt-4 pt-4 border-t border-slate-100">
+                                                    <button onClick={handleGeoReset} className="flex-1 py-3 bg-slate-100 text-slate-500 font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-colors active:scale-95">Sıfırla</button>
+                                                    <button onClick={handleGeoCalculate} className="flex-[2] py-3 bg-[#1D63CB] text-white font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-colors shadow-md active:scale-95">Hesapla ve Uygula</button>
+                                                </div>
+
+                                                {ozet.geoInfo && (
+                                                    <div className={`mt-2 p-4 rounded-xl border ${ozet.geoInfo.type === 'geo' ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
+                                                        <div className="flex items-center gap-2 mb-2 font-black text-[10px] uppercase tracking-wider">
+                                                            <Info className="w-4 h-4"/> Hesaplama Analizi
+                                                        </div>
+                                                        <p className="text-xs font-medium leading-relaxed">{ozet.geoInfo.text}</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -668,13 +936,15 @@
 
                                         <div className="pt-6 border-t border-white/10 space-y-3">
                                             <div className="flex justify-between items-center text-xs">
-                                                <span className="text-blue-100/60 font-medium">Toplam Net Emsal:</span>
+                                                <span className="text-blue-100/60 font-medium">Hedeflenen Emsal Alanı:</span>
                                                 <span className="font-bold text-white">{Math.round(ozet.emsalAlani).toLocaleString()} m²</span>
                                             </div>
                                             
                                             {ozet.zeminBrutKapasite > 0 && (
                                                 <div className="flex justify-between items-center text-xs">
-                                                    <span className="text-blue-100/60 font-medium">Zemin Kat Brüt (TAKS Sınırı):</span>
+                                                    <span className={`font-medium ${ozet.geoLimitActive ? 'text-[#FF8C00] font-bold' : 'text-blue-100/60'}`}>
+                                                        Zemin Kat Brüt {ozet.geoLimitActive ? '(Geometrik Sınır!)' : '(TAKS Sınırı)'}:
+                                                    </span>
                                                     <span className="font-bold text-white">{Math.round(ozet.zeminBrutKapasite).toLocaleString()} m²</span>
                                                 </div>
                                             )}
@@ -685,68 +955,58 @@
                                                     <span className="font-bold text-white">{Math.round(ozet.normalKatBrutKapasite).toLocaleString()} m²</span>
                                                 </div>
                                             )}
-                                            
-                                            {ozet.hasBucukKat && (
-                                                <div className="flex justify-between items-center text-xs">
-                                                    <span className="text-blue-100/60 font-medium">Çatı / Çekme Kat Brüt:</span>
-                                                    <span className="font-bold text-white">{Math.round(ozet.bucukKatBrutKapasite).toLocaleString()} m²</span>
+
+                                            {ozet.kayipEmsal > 0 && (
+                                                <div className="flex justify-between items-center text-[11px] mt-2 pt-2 border-t border-red-400/30 text-red-300">
+                                                    <span className="font-bold flex items-center gap-1"><AlertTriangle className="w-3 h-3"/> Fiziki Emsal Kaybı:</span>
+                                                    <span className="font-black">{Math.round(ozet.kayipEmsal).toLocaleString()} m²</span>
                                                 </div>
                                             )}
-                                            
-                                            <div className="flex justify-between items-center text-xs mt-2 pt-2 border-t border-white/10">
-                                                <span className="text-blue-100/60 font-medium">Net İmar Arsa:</span>
-                                                <span className="font-bold text-white">{Math.round(ozet.netArsa).toLocaleString()} m²</span>
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </aside>
 
                             <main className="lg:col-span-8 space-y-8">
+                                
                                 <section className="bg-slate-900 rounded-[2.5rem] p-6 shadow-2xl border border-slate-800 text-white relative overflow-hidden">
                                     <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl"></div>
                                     <div className="relative z-10">
-                                        <h2 className="text-xs font-bold text-[#FF8C00] uppercase tracking-widest mb-6 flex items-center gap-2">
-                                            <LayoutGrid className="w-4 h-4" /> Tahmini Senaryolar (Kombinasyonlu Seçenekler)
-                                        </h2>
-                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                        <div className="flex items-center justify-between mb-6">
+                                            <h2 className="text-xs font-bold text-[#FF8C00] uppercase tracking-widest flex items-center gap-2">
+                                                <LayoutGrid className="w-4 h-4" /> Maksimum Tek Tip Yerleşim (Esnek Ölçü)
+                                            </h2>
+                                            <span className="text-[10px] bg-slate-800 text-slate-400 px-3 py-1 rounded-full border border-slate-700">±%10 Esneme</span>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
                                             {Object.keys(DAİRE_STANDARTLARI).map((oda) => {
-                                                const scenarios = getScenarios(oda, ozet);
+                                                const scenarios = getElasticScenarios(oda, ozet);
 
                                                 return (
-                                                    <div key={oda} className="bg-white/5 p-4 rounded-3xl border border-white/10 flex flex-col hover:bg-white/10 transition-colors cursor-default group">
-                                                        <div className="text-xs font-black text-blue-400 mb-3 uppercase tracking-wider text-center group-hover:text-blue-300 transition-colors">{oda} Tipi Kombinasyonları</div>
-                                                        <div className="space-y-2">
-                                                            {scenarios.map((r, i) => {
-                                                                let kalanNotuArrText = [];
-                                                                if (r.remZeminNet > 0 && r.hasZemin) kalanNotuArrText.push(`Zemin ${r.remZeminNet}m²`);
-                                                                if (r.remNormalNet > 0 && r.hasNormal) kalanNotuArrText.push(`Normal Kat ${r.remNormalNet}m²`);
-                                                                if (r.remBucukNet > 0 && r.hasBucuk) kalanNotuArrText.push(`Çatı ${r.remBucukNet}m²`);
-                                                                
-                                                                return (
-                                                                    <div key={i} className="bg-slate-800/50 p-3 rounded-2xl border border-white/5 mb-2">
-                                                                        <div className="text-[9px] text-[#FF8C00] uppercase font-bold mb-1">{r.type}</div>
-                                                                        <div className="space-y-1 my-1.5">
-                                                                            {r.parts.map((p, idx) => (
-                                                                                <div key={idx} className="text-sm font-black text-white flex items-center flex-wrap gap-1">
-                                                                                    <span>{p.count} Adet {p.name}</span>
-                                                                                    <span className="text-[10px] font-medium text-white/50 tracking-wide ml-1">
-                                                                                        (Net: {p.net}m² | Brüt: {p.brut}m²)
-                                                                                    </span>
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
-                                                                        {kalanNotuArrText.length > 0 && (
-                                                                            <div className="inline-block px-2 py-1 mt-1 bg-blue-900/30 rounded-lg text-[9px] text-blue-200/80 font-medium border border-blue-800/50">
-                                                                                Artan Net Boşluklar: {kalanNotuArrText.join(' | ')}
-                                                                            </div>
-                                                                        )}
+                                                    <div key={oda} className="bg-white/5 p-4 rounded-3xl border border-white/10 flex flex-col cursor-default">
+                                                        <div className="text-xs font-black text-blue-400 mb-3 uppercase tracking-wider text-center">{oda} Seçenekleri</div>
+                                                        <div className="space-y-3">
+                                                            {scenarios.map((r, i) => (
+                                                                <div key={i} className="bg-slate-800/50 p-4 rounded-2xl border border-white/5 flex flex-col">
+                                                                    <div className="flex justify-between items-start mb-2">
+                                                                        <div className="text-[10px] text-[#FF8C00] uppercase font-bold">{r.type}</div>
+                                                                        <div className="text-xl font-black text-white">{r.totalAdet} <span className="text-[10px] text-white/50">ADET</span></div>
                                                                     </div>
-                                                                )
-                                                            })}
-                                                            {scenarios.length === 0 && (
-                                                                <div className="text-xs text-red-400 text-center py-4 font-bold">Bu imara sığmıyor</div>
-                                                            )}
+                                                                    
+                                                                    <div className="flex items-center gap-2 mt-1">
+                                                                        <span className="text-xs font-bold text-blue-200/80">Revize Net: {Math.round(r.normalNet)}m²</span>
+                                                                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${r.changePercent > 0 ? 'bg-green-500/20 text-green-400' : r.changePercent < 0 ? 'bg-orange-500/20 text-orange-400' : 'bg-slate-700 text-slate-300'}`}>
+                                                                            {r.changePercent > 0 ? '+' : ''}{r.changePercent.toFixed(1)}% {r.changePercent > 0 ? 'Büyüdü' : r.changePercent < 0 ? 'Küçüldü' : 'Tam Sığdı'}
+                                                                        </span>
+                                                                    </div>
+
+                                                                    <button onClick={() => setSelectedFloorPlan(r)} className="mt-3 w-full py-2 bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors border border-blue-500/30 flex justify-center items-center gap-2">
+                                                                        <Layout className="w-3 h-3"/> Örnek Kat Planı Çiz
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                            {scenarios.length === 0 && <div className="text-xs text-red-400 text-center py-4 font-bold">Alana Sığmıyor</div>}
                                                         </div>
                                                     </div>
                                                 );
@@ -759,7 +1019,7 @@
                                     <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
                                         <div>
                                             <h2 className="text-sm font-bold text-slate-800 uppercase tracking-tight flex items-center gap-2">
-                                                <Home className="w-5 h-5 text-[#1D63CB]" /> Aşağıdan istediğiniz oda sayılarını seçebilirsiniz.
+                                                <Home className="w-5 h-5 text-[#1D63CB]" /> İstediğiniz oda sayılarını seçebilirsiniz.
                                             </h2>
                                             <p className="text-xs text-slate-400 font-medium mt-1">Sonuçlar en altta görünecektir..</p>
                                         </div>
@@ -772,9 +1032,6 @@
                                                 <div className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full animate-pulse shadow-lg" title={!ozet.yerlesimUygun ? "Zemin, normal veya çatı katı planına sığmıyor!" : "Kapasite dolu"}>
                                                     <AlertTriangle className="w-3 h-3" />
                                                 </div>
-                                            )}
-                                            {!ozet.yerlesimUygun && (
-                                                <div className="text-[9px] text-red-500 font-bold mt-1">Kat Planı Uyumsuz</div>
                                             )}
                                         </div>
                                     </div>
@@ -799,7 +1056,6 @@
                                                         const key = `${oda}-${boyut}`;
                                                         const adet = sepet[key]?.adet || 0;
                                                         const s = DAİRE_STANDARTLARI[oda][boyut];
-                                                        
                                                         const testSepet = { ...sepet, [key]: { ...s, adet: adet + 1, odaTipi: oda, boyut } };
                                                         const asarMi = !checkKapasite(testSepet, ozet);
 
@@ -818,20 +1074,11 @@
                                                                 </div>
                                                                 
                                                                 <div className="flex items-center justify-between mt-5 pt-4 border-t border-slate-50 print:hidden">
-                                                                    <button 
-                                                                        onClick={() => updateAdet(oda, boyut, -1)} 
-                                                                        className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-95 disabled:opacity-30"
-                                                                        disabled={adet === 0}
-                                                                    >
+                                                                    <button onClick={() => updateAdet(oda, boyut, -1)} className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-95 disabled:opacity-30" disabled={adet === 0}>
                                                                         <Minus className="w-5 h-5" />
                                                                     </button>
                                                                     <span className={`text-2xl font-black ${adet > 0 ? 'text-[#1D63CB]' : 'text-slate-200'}`}>{adet}</span>
-                                                                    <button 
-                                                                        onClick={() => updateAdet(oda, boyut, 1)} 
-                                                                        disabled={asarMi} 
-                                                                        className={`p-2.5 rounded-xl transition-all active:scale-95 ${asarMi ? 'text-slate-200 cursor-not-allowed' : 'text-[#1D63CB] hover:bg-blue-50'}`}
-                                                                        title={asarMi ? "Herhangi bir kat planına yeterli alan yok" : "Ekle"}
-                                                                    >
+                                                                    <button onClick={() => updateAdet(oda, boyut, 1)} disabled={asarMi} className={`p-2.5 rounded-xl transition-all active:scale-95 ${asarMi ? 'text-slate-200 cursor-not-allowed' : 'text-[#1D63CB] hover:bg-blue-50'}`} title={asarMi ? "Sığmıyor" : "Ekle"}>
                                                                         <Plus className="w-5 h-5" />
                                                                     </button>
                                                                 </div>
@@ -845,7 +1092,7 @@
 
                                     <div className="mt-12 flex justify-between items-center pt-8 border-t border-slate-100">
                                         <button onClick={() => setSepet({})} className="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-red-500 transition-colors tracking-widest uppercase py-2 px-4 hover:bg-red-50 rounded-xl print:hidden">
-                                            <Trash2 className="w-4 h-4" /> Seçimleri Temizle
+                                            <Trash2 className="w-4 h-4" /> Temizle
                                         </button>
                                         <div className="text-right">
                                             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Planlanan Toplam Ünite</div>
@@ -853,72 +1100,13 @@
                                         </div>
                                     </div>
                                 </section>
-
-                                {ozet.toplamDaire > 0 && (
-                                    <section className="bg-gradient-to-br from-slate-900 to-[#1D63CB] rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden">
-                                        <div className="absolute top-0 right-0 p-12 opacity-5 scale-150 rotate-12">
-                                            <Building2 className="w-48 h-48" />
-                                        </div>
-                                        <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-10 items-center">
-                                            <div className="md:col-span-7 space-y-8">
-                                                <div>
-                                                    <h3 className="text-[#FF8C00] font-black text-xs uppercase tracking-[0.3em] mb-4">Proje Teknik Özeti</h3>
-                                                    <div className="flex items-baseline gap-3">
-                                                        <div className="text-6xl font-black tracking-tighter">{ozet.toplamNetM2.toLocaleString()}</div>
-                                                        <div className="text-xl font-bold text-blue-300/80 uppercase">Toplam Net inşaat m²</div>
-                                                    </div>
-                                                </div>
-                                                
-                                                <div className="grid grid-cols-2 gap-6">
-                                                    <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
-                                                        <div className="text-[10px] text-blue-300 font-bold uppercase tracking-wider mb-1">Toplam Brüt Kullanılan</div>
-                                                        <div className="text-xl font-black">{ozet.kullanilanM2.toLocaleString()} m²</div>
-                                                    </div>
-                                                    <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
-                                                        <div className="text-[10px] text-blue-300 font-bold uppercase tracking-wider mb-1">Verimlilik</div>
-                                                        <div className="text-xl font-black">%{((ozet.toplamNetM2 / ozet.kullanilanM2) * 100).toFixed(1)}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="md:col-span-5">
-                                                <div className="bg-white/10 p-8 rounded-[2rem] border border-white/20 backdrop-blur-xl shadow-2xl">
-                                                    <div className="flex items-center gap-2 mb-6">
-                                                        <PieChart className="w-4 h-4 text-[#FF8C00]" />
-                                                        <h4 className="text-[10px] font-black text-white/80 uppercase tracking-widest">Ünite Dağılımı</h4>
-                                                    </div>
-                                                    <div className="space-y-4">
-                                                    {Object.values(sepet).map(d => d.adet > 0 && (
-                                                        <div key={`${d.odaTipi}-${d.boyut}`} className="flex justify-between items-center group">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-2 h-2 rounded-full bg-[#FF8C00] group-hover:scale-125 transition-transform"></div>
-                                                                <span className="text-sm font-bold text-blue-100">{d.odaTipi} <span className="text-[10px] opacity-40 font-medium">({d.boyut})</span></span>
-                                                            </div>
-                                                            <div className="text-sm font-black bg-white/10 px-3 py-1 rounded-lg border border-white/5">{d.adet} <span className="text-[9px] opacity-60">Adet</span></div>
-                                                        </div>
-                                                    ))}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </section>
-                                )}
-
                             </main>
                         </div>
-
-                        <footer className="text-center py-12 border-t border-slate-200 mt-16">
-                            <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.5em] hover:text-[#1D63CB] transition-colors cursor-default">
-                                Özcan AKTAŞ Gayrimenkul Teknolojileri • 2026
-                            </p>
-                        </footer>
-
                     </div>
                 </div>
             );
         }
 
-        // Uygulamayı HTML'e ekle
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
