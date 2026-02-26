@@ -1014,7 +1014,7 @@
                                         </div>
 
                                         <div className="group">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1 group-focus-within:text-[#1D63CB]">Yola Terk Mikarı</label>
+                                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1 group-focus-within:text-[#1D63CB]">Yola Terk Miktarı</label>
                                             <div className="flex mt-1">
                                                 <input placeholder="Örn: 10" type="number" name="yolaTerkDeger" value={params.yolaTerkDeger} onChange={handleParamChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-l-2xl focus:ring-2 focus:ring-[#1D63CB] focus:bg-white outline-none font-bold shadow-sm" />
                                                 <select name="yolaTerkBirim" value={params.yolaTerkBirim} onChange={handleParamChange} className="bg-slate-100 border border-l-0 border-slate-200 rounded-r-2xl px-4 font-bold text-slate-600 outline-none hover:bg-slate-200 transition-colors">
@@ -1188,7 +1188,7 @@
                                                                     </div>
                                                                     
                                                                     <div className="flex items-center gap-2 mt-1">
-                                                                        <span className="text-xs font-bold text-blue-200/80">Revize Net: {Math.round(r.normalNet)}m²</span>
+                                                                        <span className="text-xs font-bold text-blue-200/80">Revize Net: {Math.round(r.normalNet)}m² <span className="text-[10px] font-medium text-blue-200/50 ml-1">| Brüt: {Math.round(r.normalBrut)}m²</span></span>
                                                                         <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${r.changePercent > 0 ? 'bg-green-500/20 text-green-400' : r.changePercent < 0 ? 'bg-orange-500/20 text-orange-400' : 'bg-slate-700 text-slate-300'}`}>
                                                                             {r.changePercent > 0 ? '+' : ''}{r.changePercent.toFixed(1)}% {r.changePercent > 0 ? 'Büyüdü' : r.changePercent < 0 ? 'Küçüldü' : 'Tam Sığdı'}
                                                                         </span>
