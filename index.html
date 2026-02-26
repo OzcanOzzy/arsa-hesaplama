@@ -288,11 +288,15 @@
             );
         };
 
-        // --- TAM MATEMATİKSEL ODA YERLEŞİM ALGORİTMASI ---
-        const Room = ({ wPct, hPct, realW, realH, name, bg, isEntrance, doorSide, isBalcony, isCorridor }) => {
+        // --- TAM MATEMATİKSEL ODA YERLEŞİM ALGORİTMASI (KUSURSUZ GRID) ---
+        // x, y, w, h değişkenleri %0 ile %100 arasında kesin oranları belirtir.
+        // realW ve realH odanın tam olarak fiziksel metrajıdır (totalW ve totalH ile çarpılarak elde edilir).
+        const Room = ({ x, y, w, h, totalW, totalH, name, bg, isEntrance, doorSide, isBalcony, isCorridor }) => {
+            const realW = totalW * (w / 100);
+            const realH = totalH * (h / 100);
             const area = realW * realH;
             
-            let borderClass = "border border-slate-400";
+            let borderClass = "border border-slate-400/50";
             if (isBalcony) borderClass = "border-[3px] border-dashed border-emerald-400 z-10";
             if (isCorridor) borderClass = "border border-slate-300"; 
             
@@ -302,18 +306,18 @@
             }
 
             return (
-                <div style={{ width: `${wPct}%`, height: `${hPct}%` }} className={`flex flex-col items-center justify-center relative overflow-hidden ${bg} ${borderClass}`}>
+                <div style={{ left: `${x}%`, top: `${y}%`, width: `${w}%`, height: `${h}%` }} className={`absolute flex flex-col items-center justify-center overflow-hidden ${bg} ${borderClass} shadow-sm`}>
                     {isEntrance && (
-                        <div className={`absolute bg-[#ea580c] text-white text-[7px] md:text-[9px] font-black px-1.5 py-2 flex items-center justify-center tracking-widest ${doorSide === 'right' ? 'right-0 top-1/2 -translate-y-1/2 rounded-l' : 'left-0 top-1/2 -translate-y-1/2 rounded-r'}`}>
+                        <div className={`absolute bg-[#ea580c] text-white text-[7px] md:text-[9px] font-black px-1 py-2 flex items-center justify-center tracking-widest ${doorSide === 'right' ? 'right-0 top-1/2 -translate-y-1/2 rounded-l' : 'left-0 top-1/2 -translate-y-1/2 rounded-r'}`}>
                             <span className={doorSide === 'right' ? 'vertical-text' : 'vertical-text rotate-180'}>KAPI</span>
                         </div>
                     )}
-                    <span className={`text-[9px] sm:text-[11px] font-black text-center px-1 leading-tight z-10 drop-shadow-sm ${isBalcony ? 'text-emerald-800' : 'text-slate-800'}`}>
+                    <span className={`text-[10px] sm:text-xs font-black text-center px-1 leading-tight z-10 drop-shadow-sm ${isBalcony ? 'text-emerald-800' : 'text-slate-800'}`}>
                         {name}
                     </span>
-                    <span className="text-[10px] sm:text-xs font-black text-slate-700 z-10 mt-1">{area.toFixed(1)}m²</span>
-                    <span className="text-[8px] sm:text-[9px] text-slate-600 z-10 font-bold whitespace-nowrap bg-white/50 px-1 rounded mt-0.5">
-                        {Math.min(realW, realH).toFixed(2)}m x {Math.max(realW, realH).toFixed(2)}m
+                    <span className="text-[10px] sm:text-[11px] font-bold text-slate-700 z-10 mt-1">{area.toFixed(1)}m²</span>
+                    <span className="text-[8px] sm:text-[9px] text-slate-500 z-10 font-medium whitespace-nowrap">
+                        ({Math.min(realW, realH).toFixed(2)}m x {Math.max(realW, realH).toFixed(2)}m)
                     </span>
                 </div>
             );
@@ -322,8 +326,10 @@
         const DairePlan = ({ odaTipi, netArea, kitchenType, side, totalW, totalH }) => {
             const doorSide = side === 'left' ? 'right' : 'left';
             
+            // Verilen odaları sol ve sağ daireye göre otomatik aynalayan (X ekseni) render motoru
             const renderLayout = (rooms) => {
                 return rooms.map((room, index) => {
+                    // Eğer daire sağdaysa, ana giriş solda olacaktır. Matematiksel olarak X'i ters çeviriyoruz.
                     const finalX = side === 'left' ? room.x : (100 - room.x - room.w);
                     return <Room key={index} {...room} x={finalX} totalW={totalW} totalH={totalH} doorSide={doorSide} />;
                 });
@@ -331,66 +337,67 @@
 
             let rooms = [];
 
+            // NOT: Temel yerleşimler "Sol Daire" baz alınarak yazılmıştır. 
+            // Dış cephe (Balkon/Salon) daima sola (x=0), Kat Holü / Kapı daima sağa (x=100) bakar.
             if (odaTipi === '1+1') {
                 if (kitchenType === 'açık') {
                     rooms = [
-                        { name: "Balkon", x: 0, y: 0, w: 25, h: 40, bg: "bg-emerald-50/80", isBalcony: true },
-                        { name: "Salon + Açık Mutfak", x: 25, y: 0, w: 75, h: 40, bg: "bg-amber-100" },
-                        { name: "Koridor / Antre", x: 40, y: 40, w: 60, h: 20, bg: "bg-slate-200", isCorridor: true, isEntrance: true },
-                        { name: "Yatak Odası", x: 0, y: 60, w: 60, h: 40, bg: "bg-blue-100" },
-                        { name: "Banyo", x: 60, y: 60, w: 40, h: 40, bg: "bg-teal-100" }
+                        { name: "Balkon", x: 0, y: 0, w: 25, h: 45, bg: "bg-emerald-50", isBalcony: true },
+                        { name: "Salon + Açık Mutfak", x: 25, y: 0, w: 75, h: 45, bg: "bg-amber-100" },
+                        { name: "Giriş & Antre", x: 50, y: 45, w: 50, h: 20, bg: "bg-slate-200", isEntrance: true },
+                        { name: "Yatak Odası", x: 0, y: 65, w: 60, h: 35, bg: "bg-blue-100" },
+                        { name: "Banyo", x: 60, y: 65, w: 40, h: 35, bg: "bg-teal-100" }
                     ];
                 } else {
                     rooms = [
-                        { name: "Balkon", x: 0, y: 0, w: 20, h: 40, bg: "bg-emerald-50/80", isBalcony: true },
-                        { name: "Salon", x: 20, y: 0, w: 50, h: 40, bg: "bg-amber-100" },
-                        { name: "Ayrı Mutfak", x: 70, y: 0, w: 30, h: 40, bg: "bg-orange-100" },
-                        { name: "Koridor / Antre", x: 40, y: 40, w: 60, h: 20, bg: "bg-slate-200", isCorridor: true, isEntrance: true },
-                        { name: "Yatak Odası", x: 0, y: 60, w: 50, h: 40, bg: "bg-blue-100" },
-                        { name: "Banyo", x: 50, y: 60, w: 50, h: 40, bg: "bg-teal-100" }
+                        { name: "Balkon", x: 0, y: 0, w: 20, h: 45, bg: "bg-emerald-50", isBalcony: true },
+                        { name: "Salon", x: 20, y: 0, w: 50, h: 45, bg: "bg-amber-100" },
+                        { name: "Mutfak", x: 70, y: 0, w: 30, h: 45, bg: "bg-orange-100" },
+                        { name: "Gece Holü & Antre", x: 40, y: 45, w: 60, h: 20, bg: "bg-slate-200", isCorridor: true, isEntrance: true },
+                        { name: "Yatak Odası", x: 0, y: 65, w: 55, h: 35, bg: "bg-blue-100" },
+                        { name: "Banyo", x: 55, y: 65, w: 45, h: 35, bg: "bg-teal-100" }
                     ];
                 }
             } else if (odaTipi === '2+1') {
                 rooms = [
-                    { name: "Balkon", x: 0, y: 0, w: 15, h: 40, bg: "bg-emerald-50/80", isBalcony: true },
-                    { name: "Salon", x: 15, y: 0, w: 50, h: 40, bg: "bg-amber-100" },
-                    { name: "Mutfak", x: 65, y: 0, w: 35, h: 40, bg: "bg-orange-100" },
-                    { name: "Gece Holü & Antre", x: 35, y: 40, w: 65, h: 20, bg: "bg-slate-200", isCorridor: true, isEntrance: true },
-                    { name: "Yatak Odası", x: 0, y: 60, w: 35, h: 40, bg: "bg-blue-50" },
-                    { name: "Ebeveyn Y.O.", x: 35, y: 60, w: 40, h: 40, bg: "bg-blue-100" },
-                    { name: "Banyo", x: 75, y: 60, w: 25, h: 40, bg: "bg-teal-100" }
+                    { name: "Balkon", x: 0, y: 0, w: 15, h: 45, bg: "bg-emerald-50", isBalcony: true },
+                    { name: "Salon", x: 15, y: 0, w: 50, h: 45, bg: "bg-amber-100" },
+                    { name: "Mutfak", x: 65, y: 0, w: 35, h: 45, bg: "bg-orange-100" },
+                    { name: "Gece Holü & Antre", x: 35, y: 45, w: 65, h: 20, bg: "bg-slate-200", isCorridor: true, isEntrance: true },
+                    { name: "Yatak Odası", x: 0, y: 65, w: 35, h: 35, bg: "bg-blue-50" },
+                    { name: "Ebeveyn Y.O.", x: 35, y: 65, w: 40, h: 35, bg: "bg-blue-100" },
+                    { name: "Banyo", x: 75, y: 65, w: 25, h: 35, bg: "bg-teal-100" }
                 ];
             } else if (odaTipi === '3+1') {
                 rooms = [
-                    { name: "Balkon", x: 0, y: 0, w: 15, h: 40, bg: "bg-emerald-50/80", isBalcony: true },
-                    { name: "Salon", x: 15, y: 0, w: 40, h: 40, bg: "bg-amber-100" },
-                    { name: "Mutfak", x: 55, y: 0, w: 25, h: 40, bg: "bg-orange-100" },
-                    { name: "Oda 1", x: 80, y: 0, w: 20, h: 40, bg: "bg-blue-50" },
-                    { name: "Geniş Koridor & Antre", x: 20, y: 40, w: 80, h: 20, bg: "bg-slate-200", isCorridor: true, isEntrance: true },
-                    { name: "Ebeveyn Y.O.", x: 0, y: 60, w: 35, h: 40, bg: "bg-blue-100" },
-                    { name: "Eb. Banyo", x: 35, y: 60, w: 15, h: 40, bg: "bg-teal-50" },
-                    { name: "Oda 2", x: 50, y: 60, w: 25, h: 40, bg: "bg-blue-50" },
-                    { name: "Genel Banyo", x: 75, y: 60, w: 25, h: 40, bg: "bg-teal-100" }
+                    { name: "Balkon", x: 0, y: 0, w: 15, h: 45, bg: "bg-emerald-50", isBalcony: true },
+                    { name: "Salon", x: 15, y: 0, w: 40, h: 45, bg: "bg-amber-100" },
+                    { name: "Mutfak", x: 55, y: 0, w: 25, h: 45, bg: "bg-orange-100" },
+                    { name: "Oda 1", x: 80, y: 0, w: 20, h: 45, bg: "bg-blue-50" },
+                    { name: "Uzun Koridor & Antre", x: 20, y: 45, w: 80, h: 20, bg: "bg-slate-200", isCorridor: true, isEntrance: true },
+                    { name: "Ebeveyn Y.O.", x: 0, y: 65, w: 35, h: 35, bg: "bg-blue-100" },
+                    { name: "Eb. Banyo", x: 35, y: 65, w: 15, h: 35, bg: "bg-teal-50" },
+                    { name: "Oda 2", x: 50, y: 65, w: 25, h: 35, bg: "bg-blue-50" },
+                    { name: "Genel Banyo", x: 75, y: 65, w: 25, h: 35, bg: "bg-teal-100" }
                 ];
             } else if (odaTipi === '4+1') {
                 rooms = [
-                    { name: "Balkon", x: 0, y: 0, w: 12, h: 40, bg: "bg-emerald-50/80", isBalcony: true },
+                    { name: "Balkon", x: 0, y: 0, w: 12, h: 40, bg: "bg-emerald-50", isBalcony: true },
                     { name: "Salon", x: 12, y: 0, w: 38, h: 40, bg: "bg-amber-100" },
                     { name: "Mutfak", x: 50, y: 0, w: 25, h: 40, bg: "bg-orange-100" },
                     { name: "Oda 1", x: 75, y: 0, w: 25, h: 40, bg: "bg-blue-50" },
-                    { name: "Uzun Koridor & Antre", x: 15, y: 40, w: 85, h: 20, bg: "bg-slate-200", isCorridor: true, isEntrance: true },
-                    { name: "Giyinme", x: 0, y: 40, w: 15, h: 10, bg: "bg-indigo-50" },
-                    { name: "Eb. Banyo", x: 0, y: 50, w: 15, h: 10, bg: "bg-teal-50" },
+                    { name: "Giyinme", x: 0, y: 40, w: 15, h: 20, bg: "bg-indigo-50" },
+                    { name: "Gece Holü & Antre", x: 15, y: 40, w: 85, h: 20, bg: "bg-slate-200", isCorridor: true, isEntrance: true },
                     { name: "Ebeveyn Y.O.", x: 0, y: 60, w: 35, h: 40, bg: "bg-blue-100" },
-                    { name: "Oda 2", x: 35, y: 60, w: 20, h: 40, bg: "bg-blue-50" },
-                    { name: "Oda 3", x: 55, y: 60, w: 20, h: 40, bg: "bg-blue-50" },
-                    { name: "Genel Banyo", x: 75, y: 60, w: 15, h: 40, bg: "bg-teal-100" },
-                    { name: "Çamaşır", x: 90, y: 60, w: 10, h: 40, bg: "bg-slate-100" }
+                    { name: "Eb. Banyo", x: 35, y: 60, w: 15, h: 40, bg: "bg-teal-50" },
+                    { name: "Oda 2", x: 50, y: 60, w: 20, h: 40, bg: "bg-blue-50" },
+                    { name: "Oda 3", x: 70, y: 60, w: 15, h: 40, bg: "bg-blue-50" },
+                    { name: "Genel Banyo", x: 85, y: 60, w: 15, h: 40, bg: "bg-teal-100" }
                 ];
             }
 
             return (
-                <div className="w-full h-full relative bg-slate-50/50">
+                <div className="w-full h-full relative bg-slate-50">
                     {renderLayout(rooms)}
                 </div>
             );
@@ -400,8 +407,7 @@
             if (!scenario) return null;
             const [kitchenType, setKitchenType] = useState('açık'); 
 
-            const ratio = ozet.aspectRatio || 1;
-            const isNarrow = ratio > 2.5;
+            const isNarrow = (ozet.aspectRatio || 1) > 2.5;
             const area = Math.round(ozet.normalKatBrutKapasite);
             const coreArea = Math.round(area * (1 - (1 / ozet.brutMultiplier)));
             const flats = Array.from({ length: scenario.normalCount }).map((_, i) => i + 1);
@@ -413,20 +419,20 @@
             const CoreBlock = () => {
                 const isHorizontal = isNarrow || !splitLayout;
                 return (
-                    <div className={`bg-slate-200 border-[3px] border-slate-600 flex ${isHorizontal ? 'flex-row' : 'flex-col'} shadow-inner shrink-0 relative`} style={{ [isHorizontal ? 'minHeight' : 'minWidth']: '160px', [isHorizontal ? 'width' : 'height']: '100%' }}>
-                        <div className={`flex ${isHorizontal ? 'flex-row' : 'flex-col'} bg-slate-300 border-2 border-slate-500 shadow-md z-10`} style={{ [isHorizontal ? 'height' : 'width']: '100%', [isHorizontal ? 'width' : 'height']: '60%', margin: 'auto' }}>
+                    <div className={`bg-slate-200 border-[4px] border-slate-600 flex ${isHorizontal ? 'flex-row' : 'flex-col'} shadow-inner shrink-0 relative`} style={{ [isHorizontal ? 'minHeight' : 'minWidth']: '140px', [isHorizontal ? 'width' : 'height']: '100%' }}>
+                        <div className={`flex ${isHorizontal ? 'flex-row' : 'flex-col'} bg-slate-300 border-2 border-slate-500 shadow-md z-10`} style={{ [isHorizontal ? 'height' : 'width']: '100%', [isHorizontal ? 'width' : 'height']: '50%', margin: 'auto' }}>
                             <div className="flex-[1.5] relative overflow-hidden flex items-center justify-center border-slate-500" style={{ [isHorizontal ? 'borderRightWidth' : 'borderBottomWidth']: '2px' }}>
-                                <div className="absolute inset-0 stairs-pattern opacity-50"></div>
+                                <div className="absolute inset-0 stairs-pattern opacity-60"></div>
                                 <span className="z-10 bg-white/90 px-2 py-1 text-[10px] font-black tracking-widest text-slate-800 rounded shadow">MERDİVEN</span>
                             </div>
                             <div className="flex-1 relative flex items-center justify-center bg-slate-400">
-                                <X className="absolute inset-0 w-full h-full text-slate-600 opacity-30" />
+                                <X className="absolute inset-0 w-full h-full text-slate-600 opacity-40 p-1" />
                                 <span className="z-10 bg-slate-200/90 px-2 py-1 text-[9px] font-black text-slate-900 rounded shadow">ASANSÖR</span>
                             </div>
                         </div>
-                        {/* Kat Holü binayı boydan boya keser */}
+                        {/* Kat Holü binayı boydan boya keser, daire kapıları buraya açılır */}
                         <div className={`absolute inset-0 flex items-center justify-center bg-slate-100/50 shadow-inner z-0 border-${isHorizontal ? 'y' : 'x'} border-slate-300`}>
-                            <span className={`text-xs md:text-sm font-black tracking-[0.4em] text-slate-500/70 ${isHorizontal ? '' : '-rotate-90'} whitespace-nowrap`}>MERKEZİ KAT HOLÜ</span>
+                            <span className={`text-[11px] md:text-sm font-black tracking-[0.4em] text-slate-500/70 ${isHorizontal ? '' : '-rotate-90'} whitespace-nowrap`}>MERKEZİ KAT HOLÜ</span>
                             <span className="absolute bottom-2 right-2 text-[10px] font-bold text-slate-500 bg-white/80 px-2 py-1 rounded shadow-sm">Ortak: ~{coreArea}m²</span>
                         </div>
                     </div>
@@ -436,11 +442,10 @@
             const FlatBox = ({ num, side }) => {
                 const isHorizontal = isNarrow || !splitLayout;
                 
-                // Gerçekçi Kat Planı En/Boy oranı (Matematiksel alan W*H = netArea olacak şekilde)
-                // 1+1'ler daha kareye yakın, 4+1'ler daha dikdörtgenimsi olur.
+                // Gerçekçi Kat Planı En/Boy oranı (W * H = netArea olacak şekilde matematiksel alan)
                 const aspectRatios = { '1+1': 1.3, '2+1': 1.5, '3+1': 1.6, '4+1': 1.8 };
                 let flatRatio = aspectRatios[scenario.odaTipi];
-                if (!isHorizontal) flatRatio = 1 / flatRatio; // Dikey/Yatay yerleşime göre çevir
+                if (!isHorizontal) flatRatio = 1 / flatRatio; 
 
                 const totalW = Math.sqrt(scenario.normalNet * flatRatio);
                 const totalH = scenario.normalNet / totalW;
@@ -459,7 +464,7 @@
                             <DairePlan odaTipi={scenario.odaTipi} netArea={scenario.normalNet} kitchenType={kitchenType} side={side} totalW={totalW} totalH={totalH} />
                             
                             <div className="absolute bottom-1 left-1 bg-slate-800/95 text-white px-2 py-1 text-[9px] font-black z-20 rounded shadow border border-slate-700 backdrop-blur-md">
-                                Dış Ölçü: {totalW.toFixed(2)}m x {totalH.toFixed(2)}m
+                                Daire Dış Ölçü: {totalW.toFixed(2)}m x {totalH.toFixed(2)}m
                             </div>
                         </div>
                     </div>
@@ -581,9 +586,9 @@
                     setToastMessage("Hesaplama için en az 3 kenar girmelisiniz!"); setTimeout(() => setToastMessage(""), 3500); return;
                 }
 
-                const totalL = validEdges.reduce((sum, e) => sum + parseFloat(e.length), 0);
-                const maxE = Math.max(...validEdges.map(e => parseFloat(e.length)));
-                if (maxE >= totalL - maxE) {
+                const totalLength = validEdges.reduce((sum, e) => sum + parseFloat(e.length), 0);
+                const maxEdge = Math.max(...validEdges.map(e => parseFloat(e.length)));
+                if (maxEdge >= totalLength - maxEdge) {
                     setToastMessage("Hatalı Ölçü! Bu kenarlar birleşerek kapalı bir arsa oluşturamaz."); setTimeout(() => setToastMessage(""), 4500); return;
                 }
                 
@@ -607,6 +612,144 @@
                 setEdges([{ id: 1, length: '', isRoad: true }, { id: 2, length: '', isRoad: false }, { id: 3, length: '', isRoad: false }, { id: 4, length: '', isRoad: false }]);
                 setSetbacks({ front: 5, side: 3 });
                 setToastMessage("Sınırlar sıfırlandı. Standart hesaba dönüldü."); setTimeout(() => setToastMessage(""), 3500);
+            };
+            
+            const handlePrint = () => {
+                const pdfElement = document.createElement('div');
+                let floorHtml = '';
+                if (floorDistribution && floorDistribution.length > 0) {
+                    floorDistribution.forEach(floor => {
+                        const groups = floor.items.reduce((acc, curr) => {
+                            const key = `${curr.odaTipi}-${curr.boyut}`;
+                            if(!acc[key]) acc[key] = { ...curr, count: 0 };
+                            acc[key].count++;
+                            return acc;
+                        }, {});
+                        
+                        let itemsHtml = '';
+                        if (Object.keys(groups).length > 0) {
+                            Object.values(groups).forEach(g => {
+                                itemsHtml += `<li style="margin-bottom: 5px; font-size: 14px;">• ${g.count} Adet <strong>${g.odaTipi} (${g.boyut})</strong> <span style="color:#64748b; font-size: 12px;">(Net: ${g.net}m² / Brüt: ${g.brut}m²)</span></li>`;
+                            });
+                        } else {
+                            itemsHtml = `<li style="color:#94a3b8; font-size: 12px;">Daire yerleştirilmedi.</li>`;
+                        }
+
+                        floorHtml += `
+                            <div style="margin-bottom: 15px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                                <h4 style="margin: 0 0 10px 0; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">${floor.name} <span style="font-size: 12px; color: #64748b; font-weight: normal;">(Kapasite: ${Math.round(floor.totalCap)}m²)</span></h4>
+                                <ul style="list-style-type: none; padding-left: 0; margin: 0;">
+                                    ${itemsHtml}
+                                </ul>
+                            </div>
+                        `;
+                    });
+                } else {
+                    floorHtml = '<p style="color:#ef4444;">Henüz daire seçimi yapılmadı veya kapasite aşıldı.</p>';
+                }
+
+                pdfElement.innerHTML = `
+                    <div style="font-family: Arial, sans-serif; padding: 40px; color: #1e293b; line-height: 1.5;">
+                        <h1 style="color: #1d63cb; margin-bottom: 5px; font-size: 24px; border-bottom: 2px solid #1d63cb; padding-bottom: 10px;">🏢 Emlaknomi Proje Raporu</h1>
+                        
+                        <div style="margin-top: 20px;">
+                            <h3 style="color: #f97316; margin-bottom: 10px;">📍 Arsa ve İmar Bilgileri</h3>
+                            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #e2e8f0; background: #f8fafc;"><strong>Arsa Alanı:</strong> ${params.arsaAlani || 0} m²</td>
+                                    <td style="padding: 8px; border: 1px solid #e2e8f0;"><strong>Net Arsa:</strong> ${Math.round(ozet.netArsa).toLocaleString()} m²</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #e2e8f0; background: #f8fafc;"><strong>Emsal:</strong> ${params.emsal || 0}</td>
+                                    <td style="padding: 8px; border: 1px solid #e2e8f0;"><strong>TAKS:</strong> ${params.taks || 0}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #e2e8f0; background: #f8fafc;"><strong>Kat Sayısı:</strong> ${ozet.katSayisi}</td>
+                                    <td style="padding: 8px; border: 1px solid #e2e8f0;"><strong>Nizam:</strong> ${params.nizamTipi}</td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <div style="margin-top: 20px;">
+                            <h3 style="color: #f97316; margin-bottom: 10px;">🏗️ Kapasite Özeti</h3>
+                            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #e2e8f0; background: #f8fafc;"><strong>Toplam Brüt İnşaat:</strong> ${Math.round(ozet.toplamBrutKapasite).toLocaleString()} m²</td>
+                                    <td style="padding: 8px; border: 1px solid #e2e8f0;"><strong>Hedeflenen Emsal Alanı:</strong> ${Math.round(ozet.emsalAlani).toLocaleString()} m²</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #e2e8f0; background: #f8fafc;"><strong>Zemin Kat Brüt:</strong> ${Math.round(ozet.zeminBrutKapasite).toLocaleString()} m²</td>
+                                    <td style="padding: 8px; border: 1px solid #e2e8f0;"><strong>Normal Kat Brüt:</strong> ${Math.round(ozet.normalKatBrutKapasite).toLocaleString()} m²</td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <div style="margin-top: 20px;">
+                            <h3 style="color: #f97316; margin-bottom: 10px;">🏠 Kat Bazlı Yerleşim Planı</h3>
+                            ${floorHtml}
+                        </div>
+
+                        <div style="margin-top: 20px; padding: 15px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; font-size: 14px;">
+                            <p style="margin: 0 0 5px 0;"><strong>Toplam Planlanan Ünite:</strong> ${ozet.toplamDaire} Adet</p>
+                            <p style="margin: 0 0 5px 0;"><strong>Kullanılan Toplam Brüt:</strong> ${Math.round(ozet.kullanilanM2).toLocaleString()} m²</p>
+                            <p style="margin: 0;"><strong>Kapasite Kullanım Oranı:</strong> %${ozet.dolulukOrani.toFixed(1)}</p>
+                        </div>
+                        
+                        <div style="margin-top: 40px; text-align: center; color: #94a3b8; font-size: 10px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                            Bu rapor Emlaknomi Arsa Hesaplama Programı tarafından otomatik olarak oluşturulmuştur.
+                        </div>
+                    </div>
+                `;
+
+                const opt = {
+                    margin:       0.2,
+                    filename:     'Emlaknomi_Arsa_Raporu.pdf',
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2 },
+                    jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+                };
+
+                setToastMessage("PDF Rapor Hazırlanıyor...");
+                html2pdf().set(opt).from(pdfElement).save().then(() => {
+                    setTimeout(() => setToastMessage(""), 3500);
+                });
+            };
+
+            const handleShare = async () => {
+                let textSummary = `🏢 Emlaknomi Arsa Raporu\n` +
+                                  `----------------------\n` +
+                                  `📍 Arsa: ${params.arsaAlani} m² (${params.nizamTipi})\n` +
+                                  `🏗️ Emsal: ${params.emsal} | TAKS: ${params.taks} | Kat: ${ozet.katSayisi}\n` +
+                                  `📏 Toplam Brüt İnşaat: ${Math.round(ozet.toplamBrutKapasite).toLocaleString()} m²\n` +
+                                  `✅ Planlanan Daire: ${ozet.toplamDaire} Adet (Doluluk: %${ozet.dolulukOrani.toFixed(1)})\n` +
+                                  `----------------------\nEmlaknomi ile hesaplanmıştır.`;
+
+                if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            title: 'Emlaknomi Arsa Raporu',
+                            text: textSummary,
+                        });
+                        setToastMessage("Paylaşım menüsü açıldı!");
+                        setTimeout(() => setToastMessage(""), 3500);
+                        return; 
+                    } catch (err) {
+                        console.log('Kullanıcı paylaşımı iptal etti.', err);
+                    }
+                } else {
+                     const textArea = document.createElement("textarea");
+                     textArea.value = textSummary;
+                     document.body.appendChild(textArea);
+                     textArea.select();
+                     try {
+                         document.execCommand('copy');
+                         setToastMessage("Proje özeti panoya kopyalandı!");
+                         setTimeout(() => setToastMessage(""), 3500);
+                     } catch (err) {
+                         console.error('Kopyalama başarısız', err);
+                     }
+                     document.body.removeChild(textArea);
+                }
             };
 
             useEffect(() => {
@@ -755,6 +898,15 @@
                                     </p>
                                 </div>
                             </div>
+                            
+                            <div className="flex gap-2">
+                                <button onClick={handleShare} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
+                                    <Share2 className="w-4 h-4" /> Paylaş
+                                </button>
+                                <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-[#1D63CB] text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-all shadow-md">
+                                    <FileText className="w-4 h-4" /> PDF Rapor Al
+                                </button>
+                            </div>
                         </header>
 
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -770,7 +922,7 @@
                                         </div>
 
                                         <div className="group">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1 group-focus-within:text-[#1D63CB]">Yola Terk Mikarı</label>
+                                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1 group-focus-within:text-[#1D63CB]">Yola Terk Miktarı</label>
                                             <div className="flex mt-1">
                                                 <input placeholder="Örn: 10" type="number" name="yolaTerkDeger" value={params.yolaTerkDeger} onChange={handleParamChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-l-2xl focus:ring-2 focus:ring-[#1D63CB] focus:bg-white outline-none font-bold shadow-sm" />
                                                 <select name="yolaTerkBirim" value={params.yolaTerkBirim} onChange={handleParamChange} className="bg-slate-100 border border-l-0 border-slate-200 rounded-r-2xl px-4 font-bold text-slate-600 outline-none hover:bg-slate-200 transition-colors">
